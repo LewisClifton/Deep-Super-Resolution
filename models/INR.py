@@ -1,12 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from scipy.ndimage import laplace, sobel
-from torch.utils.data import DataLoader, Dataset
-from PIL import Image, ImageFilter
-from torchvision import transforms
-from torchvision.transforms import Resize, Compose, ToTensor, Normalize
-import matplotlib.pyplot as plt
 
 class SineLayer(nn.Module):
     
