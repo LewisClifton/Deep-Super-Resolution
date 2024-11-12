@@ -1,4 +1,4 @@
-from skip import skip
+from .skip import skip
 
 # The code in this module is taken from the supplementary codebase
 # provided for the reference paper "Deep Image Prior" by Ulyanov et al.

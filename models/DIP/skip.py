@@ -1,4 +1,4 @@
-from utils import *
+from .utils import *
 
 def skip(
         num_input_channels=2, num_output_channels=3, 
@@ -33,8 +33,6 @@ def skip(
         filter_size_up   = [filter_size_up]*n_scales
 
     last_scale = n_scales - 1 
-
-    cur_depth = None
 
     model = nn.Sequential()
     model_tmp = model
