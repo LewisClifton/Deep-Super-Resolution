@@ -2,6 +2,38 @@ import torch
 import numpy as np
 from PIL import Image
 import numpy as np
+from datetime import datetime
+import os
+
+# create folder with time as name
+
+def save_image(image, image_name, out_dir, verbose=False):
+
+    image = torch_to_np(image)
+    image_pil = Image.fromarray(image)
+
+    path = os.path.join(out_dir, f'{image_name}_resolved.png')
+
+    image_pil.save(path)
+
+    if verbose:
+        print(f"Saved to {path}")
+
+def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, out_dir):
+
+    path = os.path.join(out_dir, 'log/', 'metrics_log.txt')
+
+    with open(path, 'w') as f:
+        f.write(f"time of log file generation: {str(datetime.now())}\n")
+        
+        f.write(f"Performance metrics:\n")
+        f.write(f"number of images: {str(num_images)}\n")
+        f.write(f"time to run: {str(runtime)}\n")
+        f.write(f"average_psnr: {str(avg_psnr)}\n")
+        f.write(f"average_ssim: {str(avg_ssim)}\n")
+        f.write(f"average_lpips: {str(avg_lpips)}\n")
+
+    print(f"Log file saved to {path}")
 
 def pil_to_np(img_PIL):
     '''Converts image in PIL format to np.array.
