@@ -1,19 +1,21 @@
 import torch
-import torch.optim
 import os
+from datetime import datetime
+import time
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
 from dataset import DIV2KDataset
 from utils.DIP import *
 from utils.metrics import *
-from datetime import datetime
-import time
+from utils.common import *
+
 
 # Torch setup
 torch.backends.cudnn.enabled = True
 dtype = torch.cuda.FloatTensor
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False, verbose=False):
 
@@ -39,6 +41,9 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False
     def closure():
         nonlocal i
 
+        # Get iteration start time
+        start_time = time.time()
+
         # Get model output
         out_HR = net(net_input)
         out_LR = downsampler(out_HR)
@@ -53,10 +58,11 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False
         if verbose and use_GT:
             if i % 200 == 0 :
                 out_HR_np = out_HR.detach().cpu().numpy()[0]
-                print(f"Iteration {i}:")
-                print(f"psnr: {psnr(out_HR_np, HR_image_np)}")
-                print(f"ssim: {ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)}")
-                print(f"lpips: {lpips(out_HR, HR_image)}\n")
+                print(f"Iteration {i+1}/{training_config['num_iter']}:")
+                print(f"PSNR: {psnr(out_HR_np, HR_image_np)}")
+                print(f"SSIM: {ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)}")
+                print(f"LPIPS: {lpips(out_HR, HR_image)}\n")
+                print(f"Iteration runtime: {time.time() - start_time} seconds")
 
         i += 1
 
@@ -113,8 +119,8 @@ def DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_r
         if verbose:
             print("\n")
 
-    if verbose:
-        print(f"Done for all {batch_size} images.")
+    
+    print(f"Done for all {batch_size} images.")
 
     # Get run time
     end_time = time.time()
@@ -147,8 +153,8 @@ def DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir, batch_s
         if verbose:
             print("\n")
 
-    if verbose:
-        print(f"Done for all {batch_size} images.")
+    
+    print(f"Done for all {batch_size} images.")
         
 
 def do_DIP():
@@ -166,21 +172,23 @@ def do_DIP():
     if batch_mode == 'eval':
         DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_batch_output, batch_size, verbose)
     elif batch_mode == 'inf':
-        DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir, batch_size, verbose)
+        DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir ,batch_size, verbose)
     else:
         assert(False), 'Pick either DIP evaluation (eval) or DIP inference (inf) as your batch mode'
 
 
 if __name__ == '__main__':
-    # Determine DIP behaviour
-    batch_size = 1 # -1 for entire dataset
-    batch_mode = 'inf' # 'single_eval', 'eval'
-    save_batch_output = True
+    # Determine program behaviour
     verbose = True
+    batch_mode = 'inf' # 'eval'
+    batch_size = 1 # -1 for entire dataset
+
+    # DIP evaluation settings
+    save_batch_output = True
 
     # Set the output directory
-    output_dir = os.path.join('out/DIP/')
-    output_dir = os.path.join(output_dir, datetime.now().strftime("%Y_%m_%d-%p%I_%M_%S/"))
+    output_dir = 'out/DIP/'
+    output_path = os.path.join(os.getcwd(), output_dir, f'DIP_log_{datetime.now().strftime("%Y_%m_%d-%p%I_%M_%S")}.txt')
 
     # If using single image (batch_size=1)
     image_idx = 0
@@ -188,24 +196,13 @@ if __name__ == '__main__':
     # Super resolution scale factor
     factor = 4
 
-
-    # IMPORTANT: Set to true if wanting to evaluate DIP and get metrics, False for SISR on unseen images without GT
-    #            (use_GT = True implies that any HR images in the dataset are ground truths!!)
-    use_GT = True
-    
     # Get the dataset with or without GT as required
     LR_dir = 'data/DIV2K_train_LR_x8/'
-    HR_dir = 'data/DIV2K_train_HR/' # = '' if not using HR GT for evaluation
+    HR_dir = 'data/DIV2K_train_HR/' # = None if not using HR GT for evaluation
+    dataset = DIV2KDataset(LR_dir=LR_dir, scale_factor=factor, HR_dir=HR_dir)
 
-    if use_GT: 
-        dataset = DIV2KDataset(LR_dir=LR_dir,
-                               scale_factor=factor,
-                               HR_dir=HR_dir)
-    else:
-        dataset = DIV2KDataset(LR_dir=LR_dir,
-                               scale_factor=factor,
-                               HR_dir=None)
-                            
+    # use_GT is used as a check to get performance metrics or not which require ground truth
+    use_GT = True if HR_dir else False
     if verbose: assert(use_GT), 'Verbose makes the performance metrics visible during training which require ground truths.'
 
     # Get the downsampler used to optimise

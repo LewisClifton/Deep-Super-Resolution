@@ -7,33 +7,50 @@ import os
 
 # create folder with time as name
 
-def save_image(image, image_name, out_dir, verbose=False):
+def save_image(image, image_name, output_dir, verbose=False):
 
     image = torch_to_np(image)
     image_pil = Image.fromarray(image)
 
-    path = os.path.join(out_dir, f'{image_name}_resolved.png')
+    
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    path = os.path.join(output_dir, f'{image_name}_resolved.png')
 
     image_pil.save(path)
 
     if verbose:
         print(f"Saved to {path}")
 
-def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, out_dir):
+def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir):
 
-    path = os.path.join(out_dir, 'log/', 'metrics_log.txt')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}.txt')
 
     with open(path, 'w') as f:
-        f.write(f"time of log file generation: {str(datetime.now())}\n")
+        f.write(f"Time of log file generation: {str(datetime.now())}\n")
         
         f.write(f"Performance metrics:\n")
-        f.write(f"number of images: {str(num_images)}\n")
-        f.write(f"time to run: {str(runtime)}\n")
-        f.write(f"average_psnr: {str(avg_psnr)}\n")
-        f.write(f"average_ssim: {str(avg_ssim)}\n")
-        f.write(f"average_lpips: {str(avg_lpips)}\n")
+        f.write(f"Number of images: {str(num_images)}\n")
+        f.write(f"Time to run: {str(runtime)}\n")
+        f.write(f"Average SPNR: {str(avg_psnr)}\n")
+        f.write(f"Average SSIM: {str(avg_ssim)}\n")
+        f.write(f"Average LPIPS: {str(avg_lpips)}\n")
 
     print(f"Log file saved to {path}")
+
+def save_model(model, output_dir):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}.pth')
+    torch.save(model.state_dict(), path)
+
+    print(f'Model saved to {path}')
 
 def pil_to_np(img_PIL):
     '''Converts image in PIL format to np.array.
