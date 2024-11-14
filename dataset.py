@@ -17,7 +17,7 @@ def get_image_pair(dataset_config, idx):
 
     if dataset_config.HR_dir is None:
         # If testing without GT
-        HR_image = np.zeros(shape = (width_HR, height_LR))
+        HR_image = np.zeros(shape = (width_HR, height_HR))
     else:
         # Read the HR GT image
         HR_image = cv2.imread(os.path.join(dataset_config.HR_dir, dataset_config.HR_images[idx]))
@@ -51,6 +51,17 @@ def get_image_pair(dataset_config, idx):
 
     return LR_image, HR_image, filename
 
+def scale_images(LR_image, HR_image):
+    # Scale LR images to [0,1] per the reference paper
+    LR_image /= 255.0
+    
+    # Scale HR images to [-1,1] per the reference paper
+    HR_image /= 255.0
+    HR_image *= 2   
+    HR_image -= 1
+
+    return LR_image, HR_image
+
 
 class DIV2KDataset(Dataset):
     def __init__(self, LR_dir, scale_factor, num_images=-1, HR_dir=None):
@@ -71,6 +82,8 @@ class DIV2KDataset(Dataset):
     def __getitem__(self, idx):
 
         LR_image, HR_image, filename = get_image_pair(self, idx)
+
+        LR_image, HR_image = scale_images(LR_image, HR_image)
 
         return LR_image, HR_image, filename
     
@@ -101,6 +114,9 @@ class GANTrainDIV2KDataset(Dataset):
     def __getitem__(self, idx):
 
         LR_image, HR_image, filename = get_image_pair(self, idx)
+
+        LR_image, HR_image = scale_images(LR_image, HR_image)
+
         LR_patches, HR_patches = get_train_patches(LR_image, HR_image, self.scale_factor, self.HR_patch_size, self.num_patches)
 
         return LR_patches, HR_patches, filename

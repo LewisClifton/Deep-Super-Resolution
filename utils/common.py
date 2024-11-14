@@ -9,10 +9,8 @@ import os
 
 def save_image(image, image_name, output_dir, verbose=False):
 
-    image = torch_to_np(image)
+    # image = torch_to_np(image)
     image_pil = Image.fromarray(image)
-
-    
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -29,7 +27,7 @@ def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}.txt')
+    path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}_log.txt')
 
     with open(path, 'w') as f:
         f.write(f"Time of log file generation: {str(datetime.now())}\n")
@@ -37,7 +35,7 @@ def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir):
         f.write(f"Performance metrics:\n")
         f.write(f"Number of images: {str(num_images)}\n")
         f.write(f"Time to run: {str(runtime)}\n")
-        f.write(f"Average SPNR: {str(avg_psnr)}\n")
+        f.write(f"Average PSNR: {str(avg_psnr)}\n")
         f.write(f"Average SSIM: {str(avg_ssim)}\n")
         f.write(f"Average LPIPS: {str(avg_lpips)}\n")
 
