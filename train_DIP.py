@@ -18,6 +18,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False, verbose=False):
+    # Perform DIP ISR on a single image
 
     # Get fixed noise for the network input
     net_input = get_noise(32, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).type(dtype).detach()
@@ -41,6 +42,8 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False
     def closure():
         nonlocal i
 
+        print(i)
+
         # Get iteration start time
         start_time = time.time()
 
@@ -57,11 +60,11 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False
         # Print evaluation metrics if required
         if verbose and use_GT:
             if i % 200 == 0 :
-                out_HR_np = out_HR.detach().cpu().numpy()[0]
+                out_HR_np = torch_to_np(out_HR)
                 print(f"Iteration {i+1}/{training_config['num_iter']}:")
                 print(f"PSNR: {psnr(out_HR_np, HR_image_np)}")
                 print(f"SSIM: {ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)}")
-                print(f"LPIPS: {lpips(out_HR, HR_image)}\n")
+                print(f"LPIPS: {lpips(out_HR, HR_image)}")
                 print(f"Iteration runtime: {time.time() - start_time} seconds")
 
         i += 1
@@ -71,19 +74,10 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, use_GT=False
     # Iteratively optimise over the noise 
     optimize(training_config['optimiser_type'], params, closure, training_config['learning_rate'], training_config['num_iter'])
 
-    # Return the super-resolved image after training the network
-    resolved_image = np.clip(torch_to_np(net(net_input)), 0, 1)
+    resolved_image = net(net_input)
+    
+    return resolved_image
 
-    # Return eval metrics
-    if use_GT:
-        net_metrics_ = {
-            "psnr" : psnr(resolved_image, HR_image),
-            "ssim" : ssim(resolved_image, HR_image),
-            "lpips" : lpips(resolved_image, HR_image)
-        }
-        return resolved_image, net_metrics_
-    else:
-        return resolved_image
 
 def DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_resolved_images=False, batch_size=5, verbose=False):
     # Use to evaluate DIP for SISR
@@ -100,21 +94,27 @@ def DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_r
         LR_image, HR_image, image_name = dataset[idx]
 
         if verbose:
-            print(f"Starting on {image_name}.  {idx}/{batch_size}")
+             print(f"Starting on {image_name} (image {idx+1}/{batch_size}) for {training_config['num_iter']} iterations. ")
 
         # Perform DIP SISR for the current image
-        resolved_image, net_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, use_GT=True, verbose=verbose)
+        resolved_image = DIP_ISR(net, LR_image, HR_image, factor, training_config, use_GT=True, verbose=verbose)
+        
+       # Accumulate metrics
+        HR_image = HR_image.to(device)
+        running_lpips += lpips(resolved_image, HR_image)
+       
+        resolved_image = np.clip(torch_to_np(resolved_image), 0, 1)
+        HR_image = np.clip( HR_image.detach().cpu().numpy(), 0, 1)
 
-        # Accumulate metrics
-        running_psnr += net_metrics["psnr"]
-        running_ssim += net_metrics["ssim"]
-        running_lpips += net_metrics["lpips"]
+        running_psnr += psnr(resolved_image, HR_image)
+        running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
 
         if verbose:
             print("Done.")
 
         if save_resolved_images:
-            save_image(resolved_image, image_name, output_dir, verbose=verbose)
+            resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            save_image(resolved_image, image_name, output_dir)
 
         if verbose:
             print("\n")
@@ -132,22 +132,28 @@ def DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_r
     avg_lpips = running_lpips / batch_size
     
     # Save metrics log
-    save_log(batch_size, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir)
+    save_log(batch_size, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **{'Iterations per image' : training_config['num_iter']})
+
 
 def DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir, batch_size, verbose=False):
     # Perform SISR using DIP for batch_size many images
+
+    # Get start time
+    start_time = time.time()
+
     for idx in range(batch_size):   
         LR_image, HR_image, image_name = dataset[idx]
 
         if verbose:
-            print(f"Starting on {image_name}.  {idx}/{batch_size}")
+            print(f"Starting on {image_name} (image {idx+1}/{batch_size}) for {training_config['num_iter']} iterations. ")
 
         # Perform DIP SISR for the current image
-        resolved_image, _ = DIP_ISR(net, LR_image, HR_image, factor, training_config)
+        resolved_image = DIP_ISR(net, LR_image, HR_image, factor, training_config, use_GT=False, verbose=True)
 
         if verbose:
             print("Done.")
 
+        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
         save_image(resolved_image, image_name, output_dir)
 
         if verbose:
@@ -155,41 +161,28 @@ def DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir, batch_s
 
     
     print(f"Done for all {batch_size} images.")
-        
+    
 
-def do_DIP():
-    # Cap batch size at length of dataset
-    batch_size = max(min(dataset), batch_size)
-
-    # Run DIP on entire dataset if required
-    if batch_size == -1:
-        batch_size = len(dataset)
-
-    if verbose:
-        print(f"Performing DIP SISR on {batch_size} images.")
-        print(f"Output directory: {output_dir}")
-
-    if batch_mode == 'eval':
-        DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_batch_output, batch_size, verbose)
-    elif batch_mode == 'inf':
-        DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir ,batch_size, verbose)
-    else:
-        assert(False), 'Pick either DIP evaluation (eval) or DIP inference (inf) as your batch mode'
+    # Get run time
+    runtime = time.time() - start_time
+    
+    # Save metrics log
+    save_log(batch_size, runtime, 'N/a', 'N/a', 'N/a', output_dir, **{'Iterations per image' : training_config['num_iter']})
 
 
+    
 if __name__ == '__main__':
     # Determine program behaviour
     verbose = True
-    batch_mode = 'inf' # 'eval'
+    batch_mode = 'eval' # 'eval'
     batch_size = 1 # -1 for entire dataset
 
     # DIP evaluation settings
     save_batch_output = True
 
     # Set the output directory
-    output_dir = 'out/DIP/'
-    output_path = os.path.join(os.getcwd(), output_dir, f'DIP_log_{datetime.now().strftime("%Y_%m_%d-%p%I_%M_%S")}.txt')
-
+    output_dir = os.path.join(os.getcwd(), rf'out\DIP\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    
     # If using single image (batch_size=1)
     image_idx = 0
 
@@ -210,7 +203,7 @@ if __name__ == '__main__':
 
     # Hyperparameters
     learning_rate = 0.01
-    num_iter = 4000
+    num_iter = 1
     reg_noise_std = 0.05
     optimiser_type = 'adam'
 
@@ -228,6 +221,21 @@ if __name__ == '__main__':
     # Define DIP network
     net = get_DIP_network(input_depth=32, pad='reflection').to(device)
 
-    do_DIP()
+    # Cap batch size at length of dataset
+    batch_size = min(len(dataset), batch_size)
 
-    
+    # Run DIP on entire dataset if required
+    if batch_size == -1:
+        batch_size = len(dataset)
+
+    if verbose:
+        print(f"Performing DIP SISR on {batch_size} images.")
+        print(f"Output directory: {output_dir}")
+
+
+    if batch_mode == 'eval':
+        DIP_ISR_Batch_eval(net, factor, dataset, training_config, output_dir, save_batch_output, batch_size, verbose)
+    elif batch_mode == 'inf':
+        DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir ,batch_size, verbose)
+    else:
+        assert(False), 'Pick either DIP evaluation (eval) or DIP inference (inf) as your batch mode'

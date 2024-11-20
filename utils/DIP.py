@@ -22,8 +22,7 @@ def optimize(optimizer_type, parameters, closure, learning_rate, num_iter):
             optimizer.zero_grad()
             closure()
             optimizer.step()
-
-        print('Starting optimization with LBFGS')        
+      
         def closure2():
             optimizer.zero_grad()
             return closure()
@@ -31,7 +30,6 @@ def optimize(optimizer_type, parameters, closure, learning_rate, num_iter):
         optimizer.step(closure2)
 
     elif optimizer_type == 'adam':
-        print('Starting optimization with ADAM')
         optimizer = torch.optim.Adam(parameters, lr=learning_rate)
         for _ in range(num_iter):
             optimizer.zero_grad()

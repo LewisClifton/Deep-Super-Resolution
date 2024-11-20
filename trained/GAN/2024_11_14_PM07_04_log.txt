@@ -1,0 +1,7 @@
+Time of log file generation: 2024-11-14 19:04:17.030863
+Performance metrics:
+Number of images: 5
+Time to run: 11.065990447998047
+Average PSNR: N/a
+Average SSIM: N/a
+Average LPIPS: N/a

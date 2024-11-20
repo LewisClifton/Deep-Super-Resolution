@@ -105,20 +105,20 @@ def GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=False):
     # Perform SISR using the generator for batch_size many images
     for idx in range(batch_size):   
         LR_image, HR_image, image_name = dataset[idx]
-        HR_image = HR_image.to(device)
-        LR_image = LR_image.to(device)
+        HR_image = HR_image.to(device).unsqueeze(0)
+        LR_image = LR_image.to(device).unsqueeze(0)
 
         if verbose:
             print(f"Starting on {image_name}.  ({idx}/{batch_size})")
 
         # Perform DIP SISR for the current image
-        resolved_image = gan_G(LR_image.unsqueeze(0))
+        resolved_image = gan_G(LR_image)
 
         # Accumulate metrics
         running_lpips += lpips(resolved_image, HR_image)
        
         resolved_image = np.clip(torch_to_np(resolved_image), 0, 1)
-        HR_image = np.clip( HR_image.detach().cpu().numpy(), 0, 1)
+        HR_image = np.clip( torch_to_np(HR_image), 0, 1)
         
         running_psnr += psnr(resolved_image, HR_image)
         running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
@@ -127,9 +127,6 @@ def GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=False):
             print("Done.")
 
         resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-        print(np.max(resolved_image))
-        print(resolved_image)
-
         save_image(resolved_image, image_name, output_dir)
 
         if verbose:
@@ -156,17 +153,20 @@ def GAN_ISR_Batch_inf(gan_G, dataset, output_dir, batch_size, verbose=False):
     # Perform SISR using the generator for batch_size many images
     for idx in range(batch_size):   
         LR_image, _, image_name = dataset[idx]
-        LR_image = LR_image.to(device)
+        LR_image = LR_image.to(device).unsqueeze(0)
 
         if verbose:
             print(f"Starting on {image_name}.  {idx}/{batch_size}")
 
         # Perform DIP SISR for the current image
-        resolved_image = gan_G(LR_image.unsqueeze(0)).squeeze()
+        resolved_image = gan_G(LR_image)
+        resolved_image = np.clip(torch_to_np(resolved_image), 0, 1)
 
         if verbose:
             print("Done.")
 
+        # Save the image
+        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
         save_image(resolved_image, image_name, output_dir)
 
         if verbose:
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     model_path = r'trained\GAN\2024_11_14_PM05_03.pth'
     
     # Set the output and trained model directory
-    output_dir = os.path.join(os.getcwd(), f'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    output_dir = os.path.join(os.getcwd(), rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
     trained_dir = os.path.join(os.getcwd(), r'trained\GAN')
 
     # Super resolution scale factor

@@ -10,4 +10,4 @@ def ssim(im0, im1, **kwargs):
 
 loss_fn = lpips.LPIPS(net='alex').to(torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
 def lpips(im0, im1):
-    return loss_fn.forward(im0,im1)
+    return loss_fn.forward(im0,im1).item()

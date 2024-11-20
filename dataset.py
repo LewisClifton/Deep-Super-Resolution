@@ -3,7 +3,7 @@ import cv2
 import os
 from torchvision import transforms
 import numpy as np
-from utils.SRGAN import get_train_patches
+import torch
 
 
 def get_image_pair(dataset_config, idx):
@@ -110,6 +110,44 @@ class GANTrainDIV2KDataset(Dataset):
         self.HR_patch_size = HR_patch_size
         self.num_patches = num_patches
 
+    def get_train_patches(LR_image, HR_image, scale_factor, HR_patch_size=(96, 96), num_patches=16):
+    
+        # Get size of HR image and it's patch size
+        _, HR_H, HR_W = HR_image.size()
+        HR_patch_W, HR_patch_H = HR_patch_size
+
+        LR_patches = torch.empty((num_patches, 3, int(HR_patch_H/scale_factor), int(HR_patch_W/scale_factor)), dtype=torch.float32)
+        HR_patches = torch.empty((num_patches, 3, HR_patch_H, HR_patch_W), dtype=torch.float32)
+
+        for i in range(num_patches):
+            # Get center of the HR patch
+            HR_center_x = np.random.randint(HR_patch_W // 2, HR_W - HR_patch_W // 2)
+            HR_center_y = np.random.randint(HR_patch_H // 2, HR_H - HR_patch_H // 2)
+
+            # Get the HR and LR patch edges
+            HR_left = int( HR_center_x - HR_patch_W // 2 )
+            HR_right = int( HR_left + HR_patch_W )
+            HR_top = int( HR_center_y - HR_patch_H // 2 ) 
+            HR_bottom = int( HR_top + HR_patch_H )
+
+
+            LR_left = int( HR_left / scale_factor )
+            LR_right = int( HR_right / scale_factor )
+            LR_top = int( HR_top / scale_factor )
+            LR_bottom = int( HR_bottom / scale_factor )
+
+            # Extract HR and LR patches
+            HR_patch = HR_image[:, HR_top:HR_bottom, HR_left:HR_right]
+
+            LR_patch = LR_image[:, LR_top:LR_bottom, LR_left:LR_right]
+
+
+            # Add to patches tensor stack
+            HR_patches[i] = HR_patch
+            LR_patches[i] = LR_patch
+
+        return LR_patches, HR_patches
+
 
     def __getitem__(self, idx):
 
@@ -117,7 +155,7 @@ class GANTrainDIV2KDataset(Dataset):
 
         LR_image, HR_image = scale_images(LR_image, HR_image)
 
-        LR_patches, HR_patches = get_train_patches(LR_image, HR_image, self.scale_factor, self.HR_patch_size, self.num_patches)
+        LR_patches, HR_patches = self.get_train_patches(LR_image, HR_image, self.scale_factor, self.HR_patch_size, self.num_patches)
 
         return LR_patches, HR_patches, filename
     

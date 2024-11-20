@@ -22,7 +22,7 @@ def save_image(image, image_name, output_dir, verbose=False):
     if verbose:
         print(f"Saved to {path}")
 
-def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir):
+def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **kwargs):
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -38,6 +38,10 @@ def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir):
         f.write(f"Average PSNR: {str(avg_psnr)}\n")
         f.write(f"Average SSIM: {str(avg_ssim)}\n")
         f.write(f"Average LPIPS: {str(avg_lpips)}\n")
+        
+        if kwargs:
+            for key, value in kwargs.items():
+                f.write(f"{key}: {str(value)}\n")
 
     print(f"Log file saved to {path}")
 
