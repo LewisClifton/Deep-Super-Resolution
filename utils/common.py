@@ -7,7 +7,7 @@ import os
 
 # create folder with time as name
 
-def save_image(image, image_name, output_dir, verbose=False):
+def save_image(image, image_name, output_dir):
 
     # image = torch_to_np(image)
     image_pil = Image.fromarray(image)
@@ -19,8 +19,7 @@ def save_image(image, image_name, output_dir, verbose=False):
 
     image_pil.save(path)
 
-    if verbose:
-        print(f"Saved to {path}")
+    print(f"Saved to {path}")
 
 def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **kwargs):
 

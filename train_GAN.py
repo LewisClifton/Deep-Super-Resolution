@@ -149,9 +149,12 @@ def GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=False):
 
 def GAN_ISR_Batch_inf(gan_G, dataset, output_dir, batch_size, verbose=False):
     # Perform SISR using GAN on a batch of images
+    if verbose:
+        print(f'Starting ISR inference on {batch_size} images.')
 
     # Perform SISR using the generator for batch_size many images
     for idx in range(batch_size):   
+
         LR_image, _, image_name = dataset[idx]
         LR_image = LR_image.to(device).unsqueeze(0)
 
@@ -180,12 +183,11 @@ if __name__ == '__main__':
 
     # Determine program behaviour
     verbose = True
-    mode = 'train' # 'inf', 'train', 'eval'
-    num_images = 5
+    mode = 'inf' # 'inf', 'train', 'eval'
+    num_images = 1
 
     # Inference settings (if mode = 'inf')
-    inf_batch_size = 1 # how many images to process if doing inference, -1 for entire dataset
-    model_path = r'trained\GAN\2024_11_14_PM05_03.pth'
+    model_path = r'trained\GAN\2024_11_20_PM12_31.pth'
     
     # Set the output and trained model directory
     output_dir = os.path.join(os.getcwd(), rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
@@ -196,7 +198,7 @@ if __name__ == '__main__':
 
     # Get dataset
     LR_dir = 'data/DIV2K_train_LR_x8/'
-    HR_dir = 'data/DIV2K_train_HR/' # = '' if not using HR GT for evaluation
+    HR_dir = ''#'data/DIV2K_train_HR/' # = '' if not using HR GT for evaluation
 
     # Get loss functions
     bce_loss = nn.BCELoss().to(device)
@@ -271,4 +273,4 @@ if __name__ == '__main__':
         # Get dataset for inference (i.e. without ground truth!)
         dataset = DIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images)
 
-        GAN_ISR_Batch_inf(gan_G, dataset, output_dir, batch_size, verbose=verbose)
+        GAN_ISR_Batch_inf(gan_G, dataset, output_dir, num_images, verbose=verbose)

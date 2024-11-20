@@ -31,14 +31,15 @@ def get_image_pair(dataset_config, idx):
 
     if width_HR > HR_image.shape[1] and height_HR > LR_image.shape[0]:
     
-        width_HR = (width_HR // dataset_config.scale_factor) * dataset_config.scale_factor  # Find the largest multiple of z <= x
-        height_HR = (height_HR // dataset_config.scale_factor) * dataset_config.scale_factor
+        width_HR = int((width_HR // dataset_config.scale_factor) * dataset_config.scale_factor)  # Find the largest multiple of z <= x
+        height_HR = int((height_HR // dataset_config.scale_factor) * dataset_config.scale_factor)
 
-        width_LR = width_HR / dataset_config.scale_factor
-        height_LR = height_HR / dataset_config.scale_factor
+        width_LR = int(width_HR / dataset_config.scale_factor)
+        height_LR = int(height_HR / dataset_config.scale_factor)
 
         HR_image = cv2.resize(HR_image, (width_HR, height_HR))
         LR_image = cv2.resize(LR_image, (width_LR, height_LR))
+
     else:
         HR_image = cv2.resize(HR_image, (width_HR, height_HR))
 
@@ -110,7 +111,7 @@ class GANTrainDIV2KDataset(Dataset):
         self.HR_patch_size = HR_patch_size
         self.num_patches = num_patches
 
-    def get_train_patches(LR_image, HR_image, scale_factor, HR_patch_size=(96, 96), num_patches=16):
+    def get_train_patches(self, LR_image, HR_image, scale_factor, HR_patch_size=(96, 96), num_patches=16):
     
         # Get size of HR image and it's patch size
         _, HR_H, HR_W = HR_image.size()

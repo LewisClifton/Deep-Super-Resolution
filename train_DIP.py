@@ -174,8 +174,8 @@ def DIP_ISR_Batch_inf(net, factor, dataset, training_config, output_dir, batch_s
 if __name__ == '__main__':
     # Determine program behaviour
     verbose = True
-    batch_mode = 'eval' # 'eval'
-    batch_size = 1 # -1 for entire dataset
+    batch_mode = 'eval' # 'inf'
+    batch_size = 1 # -1 for entire dataset, 1 for a running DIP on a single image
 
     # DIP evaluation settings
     save_batch_output = True
