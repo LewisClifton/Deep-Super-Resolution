@@ -35,6 +35,8 @@ def optimize(optimizer_type, parameters, closure, learning_rate, num_iter):
             optimizer.zero_grad()
             closure()
             optimizer.step()
+        optimizer.zero_grad(set_to_none=True)
+        del optimizer
     else:
         assert False
 

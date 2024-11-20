@@ -4,6 +4,7 @@ import os
 from torchvision import transforms
 import numpy as np
 import torch
+from utils.degradation import *
 
 
 def get_image_pair(dataset_config, idx):
@@ -11,6 +12,16 @@ def get_image_pair(dataset_config, idx):
     LR_image =  cv2.imread(os.path.join(dataset_config.LR_dir, dataset_config.LR_images[idx]))
     LR_image = cv2.cvtColor(LR_image, cv2.COLOR_BGR2RGB)
 
+    if dataset_config.downsample:
+        LR_image = downsample(LR_image)
+                              
+    # Apply noise degredation if necessary:
+    if dataset_config.noise_type is not None:
+        if dataset_config.noise_type['type'] == 'SaltAndPepper':
+            LR_image = add_salt_pepper_noise(LR_image, s=dataset_config.noise_type['s'], p=dataset_config.noise_type['p'])
+        elif dataset_config.noise_type['type'] == 'Gaussian':
+            LR_image = add_gaussian_noise(LR_image, std=dataset_config.noise_type['std'])
+                              
     # Get the expected dimensions of the HR image given the LR image shape and the scale factor
     width_HR = dataset_config.scale_factor * LR_image.shape[1]
     height_HR = dataset_config.scale_factor * LR_image.shape[0]
@@ -64,9 +75,14 @@ def scale_images(LR_image, HR_image):
     return LR_image, HR_image
 
 
-class DIV2KDataset(Dataset):
-    def __init__(self, LR_dir, scale_factor, num_images=-1, HR_dir=None):
-        super(DIV2KDataset, self).__init__()
+# Would've been neater to use inheritance from a DIV2KDataset class but these classes are only short anyway
+
+class DIPDIV2KDataset(Dataset):
+    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None):
+        super(DIPDIV2KDataset, self).__init__()
+
+        self.downsample = downsample
+        self.noise_type = noise_type
 
         self.scale_factor = scale_factor
 
@@ -92,9 +108,14 @@ class DIV2KDataset(Dataset):
         return len(self.LR_images)
     
 
-class GANTrainDIV2KDataset(Dataset):
-    def __init__(self, LR_dir, HR_dir, scale_factor, num_images=-1, HR_patch_size=(96,96), num_patches=16):
-        super(GANTrainDIV2KDataset, self).__init__()
+class GANDIV2KDataset(Dataset):
+    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, HR_patch_size=(96,96), num_patches=16, train=False):
+        super(GANDIV2KDataset, self).__init__()
+
+        self.train = train
+
+        self.downsample = downsample
+        self.noise_type = noise_type
 
         self.scale_factor = scale_factor
 
@@ -156,9 +177,14 @@ class GANTrainDIV2KDataset(Dataset):
 
         LR_image, HR_image = scale_images(LR_image, HR_image)
 
-        LR_patches, HR_patches = self.get_train_patches(LR_image, HR_image, self.scale_factor, self.HR_patch_size, self.num_patches)
+        # If training use image patches:
+        if self.train:
+            LR_patches, HR_patches = self.get_train_patches(LR_image, HR_image, self.scale_factor, self.HR_patch_size, self.num_patches)
 
-        return LR_patches, HR_patches, filename
-    
+            return LR_patches, HR_patches, filename
+
+        else:
+            return LR_image, HR_image, filename
+
     def __len__(self):
         return len(self.LR_images)

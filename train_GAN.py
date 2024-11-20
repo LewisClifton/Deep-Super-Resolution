@@ -6,7 +6,7 @@ import time
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator
-from dataset import DIV2KDataset, GANTrainDIV2KDataset
+from dataset import GANDIV2KDataset
 from utils.SRGAN import *
 from utils.metrics import *
 from utils.common import *
@@ -87,6 +87,12 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
     train_runtime = time.time() - train_start_time
     
     print("Done.")
+
+    if verbose:
+        print(f"Epoch {num_epoch}/{num_epoch}:")
+        print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
+        print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
+        print(f"Epoch run time: {time.time() - start_time}")
 
     save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir)
 
@@ -183,11 +189,11 @@ if __name__ == '__main__':
 
     # Determine program behaviour
     verbose = True
-    mode = 'inf' # 'inf', 'train', 'eval'
-    num_images = 1
+    mode = 'eval' # 'inf', 'train', 'eval'
+    num_images = 3 # -1 for entire dataset, 1 for a running GAN on a single image
 
     # Inference settings (if mode = 'inf')
-    model_path = r'trained\GAN\2024_11_20_PM12_31.pth'
+    model_path = r'trained\GAN\2024_11_20_PM02_50.pth'
     
     # Set the output and trained model directory
     output_dir = os.path.join(os.getcwd(), rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
@@ -198,7 +204,20 @@ if __name__ == '__main__':
 
     # Get dataset
     LR_dir = 'data/DIV2K_train_LR_x8/'
-    HR_dir = ''#'data/DIV2K_train_HR/' # = '' if not using HR GT for evaluation
+    HR_dir = 'data/DIV2K_train_HR/' # = '' if not using HR GT for evaluation
+
+    # Degredation
+    downsample = False
+    noise_type = {
+        'type' : 'Gaussian',
+        'std': 200,
+    }
+    noise_type = {
+        'type' : 'SaltAndPepper',
+        's' : 0.01,
+        'p' : 0.01
+    }
+    noise_type = None
 
     # Get loss functions
     bce_loss = nn.BCELoss().to(device)
@@ -239,13 +258,15 @@ if __name__ == '__main__':
 
     # Train hyperparameters
     batch_size = 4
-    num_epoch = 1 # 1e+5 in paper
+    num_epoch = 2 # 1e+5 in paper
     optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
     optim_D = torch.optim.Adam(gan_D.parameters(), lr=1e-4)
 
-    # Decide to train or do inference on bathc of LR images
+    # Decide to train or do inference on batch of LR images
     if mode == 'train':
-        dataset = GANTrainDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, HR_dir=HR_dir)
+        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, HR_dir=HR_dir, downsample=downsample, noise_type=noise_type, train=True)
+
+        batch_size = num_images if batch_size > num_images else batch_size
 
         # Train the data using the dataloader
         train_loader = DataLoader(dataset, batch_size=batch_size)
@@ -259,9 +280,9 @@ if __name__ == '__main__':
         gan_G.eval()
 
         # Get dataset for evaluation
-        dataset = DIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, HR_dir=HR_dir)
+        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, HR_dir=HR_dir)
 
-        GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=verbose)
+        GAN_ISR_Batch_eval(gan_G, dataset, output_dir, num_images, verbose=verbose)
 
     elif mode == 'inf':
         # Load trained model
@@ -271,6 +292,6 @@ if __name__ == '__main__':
         gan_G.eval()
 
         # Get dataset for inference (i.e. without ground truth!)
-        dataset = DIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images)
+        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images)
 
         GAN_ISR_Batch_inf(gan_G, dataset, output_dir, num_images, verbose=verbose)
