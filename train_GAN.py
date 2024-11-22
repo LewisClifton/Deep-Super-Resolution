@@ -117,6 +117,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         'avg_ssim' : []
     }
 
+    sys.exit(0)
+
     for epoch in range(num_epoch):
 
         # Get iteration start time
@@ -188,7 +190,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
     save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir, kwargs=training_metrics)
 
-    save_model(gan_G, output_dir)
+    save_model(gan_G.module, output_dir)
 
 
 def GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=False):
@@ -377,9 +379,9 @@ if __name__ == '__main__':
 
     #print(f"Before loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
     # Get generator and discriminator
-    gan_G = Generator(factor=factor).to(device)
+    gan_G = nn.DataParallel(Generator(factor=factor)).to(device)
     if mode == 'train':
-        gan_D = Discriminator(HR_patch_size).to(device)
+        gan_D = nn.DataParallel(Discriminator(HR_patch_size)).to(device)
     #print(f"After loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
     # Train hyperparameters
