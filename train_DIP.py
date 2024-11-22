@@ -15,7 +15,6 @@ from utils.common import *
 
 # Torch setup
 torch.backends.cudnn.enabled = True
-dtype = torch.cuda.FloatTensor
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -33,7 +32,7 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
     downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
 
     # Get fixed noise for the network input
-    net_input = get_noise(4, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).type(dtype).detach()
+    net_input = get_noise(4, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).detach()
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
 
