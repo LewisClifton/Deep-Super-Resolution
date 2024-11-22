@@ -53,7 +53,7 @@ class PerceptualLoss():
         return perceptual_loss
 
 
-def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=False):
+def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch, train_log_freq, verbose=False):
     # Train GAN to perform SISR
 
     #print(f"Start of training: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
@@ -112,7 +112,6 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
     train_start_time = time.time()
 
-
     avg_psnr = []
     avg_ssim =[]
 
@@ -138,7 +137,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
             iteration_losses_D.append(loss_D.detach().item())
             iteration_losses_G.append(loss_G.detach().item())
 
-            if epoch % 1 == 0:
+            if epoch % train_log_freq == 0:
                 with torch.no_grad():
                     batch_psnr = []
                     batch_ssim = []
@@ -154,7 +153,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
                     epoch_psnr.append(sum(epoch_psnr)/batch_size)
                     epoch_ssim.append(sum(epoch_ssim)/batch_size)
 
-        if epoch % 1  == 0:
+        if epoch % train_log_freq  == 0:
             avg_psnr.append(sum(epoch_psnr)/batches)
             avg_ssim.append(sum(epoch_ssim)/batches)
 
@@ -171,9 +170,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
     if verbose:
         print(f"Epoch {num_epoch}/{num_epoch}:")
-        print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
-        print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
-        print(f"Epoch run time: {time.time() - start_time}")
+        print(f"Final Discriminator loss: {iteration_losses_D[-1]:.4f}")
+        print(f"Final Generator loss: {iteration_losses_G[-1]:.4f}")
+        print(f"Train run time: {train_runtime}")
 
     # Save metrics log and model
     save_log(num_images, train_runtime, avg_psnr, avg_ssim, "N/a (LPIPS uses too much GPU memory when training)", output_dir)
@@ -274,12 +273,14 @@ if __name__ == '__main__':
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
     parser.add_argument('--mode', type=str, help='"train": train model, "eval": get evaluation metrics of trained model over test set', required=True)
     parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
+    parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=-1)
     parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
     parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
     parser.add_argument('--verbose', type=bool, help='Informative command line output during execution', default=False)
+    
     args = parser.parse_args()
 
     cwd = args.out_dir
@@ -299,7 +300,11 @@ if __name__ == '__main__':
     # Program mode i.e. 'train' for training, 'eval' for evaluation
     mode = args.mode
 
+    # Training epochs
     num_epoch = args.num_epoch
+
+    # How many epochs between saving metrics when training
+    train_log_freq = args.train_log_freq
 
     model_path = ''
     if args.model_path:
@@ -384,7 +389,7 @@ if __name__ == '__main__':
 
         # Train the data using the dataloader
         train_loader = DataLoader(dataset, batch_size=batch_size)
-        GAN_ISR_train(gan_G, gan_D, train_loader, trained_dir, num_epoch, verbose=verbose)
+        GAN_ISR_train(gan_G, gan_D, train_loader, trained_dir, num_epoch, train_log_freq, verbose=verbose)
 
     elif mode == 'eval':
         # Load trained model
