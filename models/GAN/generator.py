@@ -42,7 +42,7 @@ class PixelShuffleBlock(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, residual_blocks_count=16):
+    def __init__(self, factor=8, residual_blocks_count=16):
         super(Generator, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64 , kernel_size=9, stride=1, padding=4)
         self.prelu1 = self.prelu1 = nn.PReLU()
@@ -52,8 +52,11 @@ class Generator(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64 , kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(num_features=64)
 
-        self.pixel_shuffle_block1 = PixelShuffleBlock(in_channels=64)
-        self.pixel_shuffle_block2 = PixelShuffleBlock(in_channels=64)
+        if factor == 8:
+            pixel_shuffles = 3
+        elif factor == 16:
+            pixel_shuffles = 4
+        self.pixel_shuffle_blocks = nn.Sequential(*[PixelShuffleBlock(in_channels=64) for _ in range(pixel_shuffles)])
 
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=3 , kernel_size=9, stride=1, padding=4)
 
@@ -65,12 +68,10 @@ class Generator(nn.Module):
         z = self.conv2(z)
         z = self.bn1(z)
 
-        #print(z.shape)
         z = x + z 
-        #print(z.shape)
-        z = self.pixel_shuffle_block1(z)
-        #print(z.shape)
-        z = self.pixel_shuffle_block2(z)
+
+        z = self.pixel_shuffle_blocks(z)
+
 
         z = self.conv3(z)
 

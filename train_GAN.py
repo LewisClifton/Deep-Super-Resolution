@@ -90,7 +90,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         # Train Generator
         fake_output_G = gan_G(LR_images)
         fake_output_D = gan_D(fake_output_G.detach())
-        loss_G = perceptualLoss(fake_output_G, HR_images, fake_output_D)
+        loss_G = perceptualLoss(fake_output_G, HR_images, fake_output_D, bce_loss)
 
         # Update Generator
         gan_G.zero_grad()
@@ -112,6 +112,11 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
     train_start_time = time.time()
 
+    training_metrics = {
+        'avg_psnr' : [],
+        'avg_ssim' : []
+    }
+
     for epoch in range(num_epoch):
 
         # Get iteration start time
@@ -120,6 +125,11 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         # Keep track of generator and discriminator losses
         iteration_losses_D = []
         iteration_losses_G = []
+
+        psnr = []
+        ssim = []
+
+        batches = len(train_loader)
         
         # Iterate over a batch
         for _, (LR_patches, HR_patches, _) in enumerate(train_loader):
@@ -128,20 +138,42 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
             LR_patches = LR_patches.view(-1, 3, LR_patches.shape[3], LR_patches.shape[4])
             HR_patches = HR_patches.view(-1, 3, HR_patches.shape[3], HR_patches.shape[4])
 
-            print(HR_patches.shape)
-            quit()
-            
             loss_D, loss_G = do_epoch(LR_patches, HR_patches)
 
             iteration_losses_D.append(loss_D.detach().item())
             iteration_losses_G.append(loss_G.detach().item())
 
-        if verbose:
-            if epoch % 200 == 0 :
-                print(f"Epoch {epoch+1}/{num_epoch}:")
-                print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
-                print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
-                print(f"Epoch run time: {time.time() - start_time}")
+            if epoch % 1 == 0:
+                # Iterate through the batch and get the psnr and ssim for current gan_G
+                patches = LR_patches.shape[0]
+                batch_psnr = []
+                batch_ssim = []
+                for i in range(patches):
+                    with torch.no_grad():
+                        LR_patch = LR_patches[i].unsqueeze(0).to(device)
+                        out_G = gan_G(LR_patch).detach().cpu().numpy().squeeze(0)
+                        HR_patch = HR_patches[i].numpy()
+                        batch_psnr.append(psnr(out_G, HR_patch))
+                        batch_ssim.append(ssim(out_G, HR_patch))
+
+                        del LR_patch, HR_patch, out_G
+
+                
+                psnr.append(sum(batch_psnr)/patches)
+                ssim.append(sum(batch_ssim)/patches)
+
+        if epoch % 1  == 0:
+            training_metrics['avg_psnr'].append(sum(psnr)/batches)
+            training_metrics['avg_ssim'].append(sum(ssim)/batches)
+
+            if verbose:
+                    print(f"Epoch {epoch+1}/{num_epoch}:")
+                    print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
+                    print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
+                    print(f"Epoch run time: {time.time() - start_time}")
+
+    print(training_metrics['avg_psnr'])
+    print(training_metrics['avg_ssim'])
 
     train_runtime = time.time() - train_start_time
     
@@ -153,7 +185,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
         print(f"Epoch run time: {time.time() - start_time}")
 
-    save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir)
+    save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir, kwargs=training_metrics)
 
     save_model(gan_G, output_dir)
 
@@ -298,8 +330,16 @@ if __name__ == '__main__':
     # Super resolution scale factor
     factor = 8
 
+    # Generator input size
+    LR_patch_size = (48,48)
+    
     # Degredation
     downsample = args.downsample
+    if downsample:
+        factor *= 2
+        LR_patch_size = (24, 24) # factor 16 is big so make the patches smaller
+
+    HR_patch_size = (LR_patch_size[0] * factor, LR_patch_size[1] * factor)
 
     # Noise
     noise_type = args.noise_type 
@@ -334,13 +374,9 @@ if __name__ == '__main__':
         print(f'Noise and downsampling are only supported when evaluating (--mode=eval)')
         sys.exit(1)
 
-    # Generator and Discriminator input size
-    LR_patch_size = (48,48)
-    HR_patch_size = (LR_patch_size[0] * factor, LR_patch_size[1] * factor)
-
     #print(f"Before loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
     # Get generator and discriminator
-    gan_G = Generator().to(device)
+    gan_G = Generator(factor=factor).to(device)
     if mode == 'train':
         gan_D = Discriminator(HR_patch_size).to(device)
     #print(f"After loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")

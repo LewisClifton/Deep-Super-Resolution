@@ -52,7 +52,7 @@ class Discriminator(nn.Module):
             x = self.leakyrelu1(x)
             x = self.convblocks(x)
             x = x.view(x.size(0), -1) 
-            
+
             return x.shape[1]
 
     def forward(self, x):
