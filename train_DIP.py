@@ -75,6 +75,7 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
 
         # Print evaluation metrics if required
         if i % 1 == 0  and use_GT:
+            out_HR_np = torch_to_np(out_HR)
             epoch_psnr = psnr(out_HR_np, HR_image_np)
             epoch_ssim = ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)
             training_metrics['psnr'].append(epoch_psnr)
@@ -86,6 +87,8 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
                 print(f"PSNR: {epoch_psnr}")
                 print(f"SSIM: {epoch_ssim}")
                 print(f"Iteration runtime: {time.time() - start_time} seconds")
+            
+            del out_HR_np
 
         i += 1
         out_HR.detach().cpu()
