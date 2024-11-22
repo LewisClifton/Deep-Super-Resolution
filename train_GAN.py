@@ -126,8 +126,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         iteration_losses_D = []
         iteration_losses_G = []
 
-        psnr = []
-        ssim = []
+        epoch_psnr = []
+        epoch_ssim = []
 
         batches = len(train_loader)
         
@@ -165,8 +165,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
                 ssim.append(sum(batch_ssim)/patches)
 
         if epoch % 1  == 0:
-            training_metrics['avg_psnr'].append(sum(psnr)/batches)
-            training_metrics['avg_ssim'].append(sum(ssim)/batches)
+            training_metrics['avg_psnr'].append(sum(epoch_psnr)/batches)
+            training_metrics['avg_ssim'].append(sum(epoch_ssim)/batches)
 
             if verbose:
                     print(f"Epoch {epoch+1}/{num_epoch}:")
