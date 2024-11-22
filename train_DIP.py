@@ -160,8 +160,8 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
         running_psnr += psnr(resolved_image, HR_image)
         running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
 
-        training_metrics['psnr'] += np.array(image_training_metrics)
-        training_metrics['ssim'] += np.array(image_training_metrics)
+        training_metrics['psnr'] += np.array(image_training_metrics['psnr'])
+        training_metrics['ssim'] += np.array(image_training_metrics['ssim'])
 
         if verbose:
             print("Done.")
