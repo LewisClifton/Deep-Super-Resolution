@@ -238,7 +238,6 @@ if __name__ == '__main__':
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
     parser.add_argument('--save_output', type=bool, help='Whether to save output when evaluating (--model=eval)', default=False)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=1)
-    parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
     parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
@@ -261,15 +260,6 @@ if __name__ == '__main__':
 
     # Program mode i.e. 'train' for training, 'eval' for evaluation
     mode = args.mode
-
-    model_path = ''
-    if args.model_path:
-        # Inference settings (if mode = 'inf')
-        model_path = args.model_path 
-
-    if model_path == '' and mode == 'eval':
-        print(f'Must provide a model with --model flag to perform evaluation with.')
-        sys.exit(1)
 
     # Display information during running
     verbose = args.verbose
@@ -317,10 +307,6 @@ if __name__ == '__main__':
         else:
             print(f'Noise type {args.noise_type} not supported. Use either --noise_type=gauss or --noise_type=saltpepper')
             sys.exit(1)
-
-    if (noise_type and mode == 'train') or (downsample and mode == 'train'):
-        print(f'Noise and downsampling are only supported when evaluating (--mode=eval)')
-        sys.exit(1)
 
     # Whether to save output when evaluating
     save_output = args.save_output
