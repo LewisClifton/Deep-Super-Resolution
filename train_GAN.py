@@ -132,10 +132,13 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         batches = len(train_loader)
         
         # Iterate over a batch
-        for _, (LR_patch, HR_patch, _) in enumerate(train_loader):
+        for _, (LR_patches, HR_patches, _) in enumerate(train_loader):
             
-            LR_patch = LR_patch.unsqueeze(0)
-            HR_patch = HR_patch.unsqueeze(0)
+            LR_patches = LR_patches
+            HR_patches = HR_patches
+            print(LR_patch.shape)
+            print(HR_patch.shape)
+            quit()
 
             loss_D, loss_G = do_epoch(LR_patch, HR_patch)
 
@@ -144,13 +147,16 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
             if epoch % 1 == 0:
                 with torch.no_grad():
-                    LR_patch = LR_patch.to(device)
+                    
+                    LR_patch = LR_patches[i].to(device)
                     out_G = gan_G(LR_patch).detach().cpu().numpy()
-                    HR_patch = HR_patch.numpy()
-                    epoch_psnr.append(psnr(out_G, HR_patch))
-                    epoch_ssim.append(ssim(out_G, HR_patch, channel_axis=0, data_range=1.0))
+                    for i in range(batch_size):
                         
-                    del LR_patches
+                        HR_patch = HR_patches[i].numpy()
+                        epoch_psnr.append(psnr(out_G[i], HR_patch))
+                        epoch_ssim.append(ssim(out_G[i], HR_patch, channel_axis=0, data_range=1.0))
+                        
+                    del LR_patch, out_G
 
         if epoch % 1  == 0:
             training_metrics['avg_psnr'].append(sum(epoch_psnr)/batches)
