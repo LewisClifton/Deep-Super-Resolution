@@ -301,7 +301,7 @@ if __name__ == '__main__':
     mode = args.mode
 
     # Training epochs
-    num_epoch = args.num_epoch
+    num_epoch = args.num_epochs
 
     # How many epochs between saving metrics when training
     train_log_freq = args.train_log_freq
@@ -321,7 +321,7 @@ if __name__ == '__main__':
     # Number of images from the dataset to use
     num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
 
-    if num_images <= -1 or num_images == 0:
+    if num_images < -1 or num_images == 0:
         print(f'Please provide a valid number of images to use with --num_images=-1 for entire dataset or --num_images > 0')
         sys.exit(1)
 
@@ -385,6 +385,7 @@ if __name__ == '__main__':
     if mode == 'train':
         dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=LR_patch_size, HR_dir=HR_dir, downsample=downsample, noise_type=noise_type, train=True)
 
+        num_images = len(dataset)
         batch_size = num_images if batch_size > num_images else batch_size
 
         # Train the data using the dataloader
@@ -400,6 +401,7 @@ if __name__ == '__main__':
 
         # Get dataset for evaluation
         dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, HR_dir=HR_dir)
+        num_images = len(dataset)
 
         GAN_ISR_Batch_eval(gan_G, dataset, output_dir, num_images, verbose=verbose)
 
@@ -412,5 +414,6 @@ if __name__ == '__main__':
 
         # Get dataset for inference (i.e. without ground truth!)
         dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images)
+        num_images = len(dataset)
 
         GAN_ISR_Batch_inf(gan_G, dataset, output_dir, num_images, verbose=verbose)
