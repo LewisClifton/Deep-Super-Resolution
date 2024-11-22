@@ -2,6 +2,8 @@ import torch
 import os
 from datetime import datetime
 import time
+import argparse
+import sys
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
@@ -45,6 +47,11 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
     i = 0
     params = get_params('net', net, net_input)
 
+    training_metrics = {
+        'psnr' : [],
+        'ssim' : []
+    }
+
     # Define closure for training
     def closure():
         nonlocal i, net_input
@@ -52,9 +59,6 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
          # Include regulariser noise
         if reg_noise_std > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
-
-
-        print(f'Iteration {i}: {torch.cuda.memory_allocated()}')
 
         # Get iteration start time
         start_time = time.time()
@@ -71,13 +75,17 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
         total_loss.backward()
 
         # Print evaluation metrics if required
-        if verbose and use_GT:
-            if i % 200 == 0 :
+        if i % 1 == 0  and use_GT:
+            epoch_psnr = psnr(out_HR_np, HR_image_np)
+            epoch_ssim = ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)
+            training_metrics['psnr'].append(epoch_psnr)
+            training_metrics['ssim'].append(epoch_ssim)
+
+            if verbose:
                 out_HR_np = torch_to_np(out_HR)
                 print(f"Epoch {i+1}/{training_config['num_epochs']}:")
-                print(f"PSNR: {psnr(out_HR_np, HR_image_np)}")
-                print(f"SSIM: {ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)}")
-                print(f"LPIPS: N/A as it uses too much GPU memory")
+                print(f"PSNR: {epoch_psnr}")
+                print(f"SSIM: {epoch_ssim}")
                 print(f"Iteration runtime: {time.time() - start_time} seconds")
 
         i += 1
@@ -105,7 +113,10 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
     del downsampler
     torch.cuda.empty_cache()
     
-    return resolved_image
+    if use_GT:
+        return resolved_image, training_metrics
+    else:
+        return resolved_image, None
 
 
 def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolved_images=False, num_images=5, verbose=False):
@@ -118,6 +129,11 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
     running_lpips = 0
     start_time = time.time()
 
+    training_metrics = {
+        'psnr' : np.zeros(shape=(training_config['num_epochs'])),
+        'ssim' : np.zeros(shape=(training_config['num_epochs']))
+    }
+
     # Perform SISR using DIP for num_images many images
     for idx in range(num_images):   
         
@@ -127,7 +143,7 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
              print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_epochs']} iterations. ")
 
         # Perform DIP SISR for the current image
-        resolved_image = DIP_ISR(LR_image, HR_image, factor, training_config, use_GT=True, verbose=verbose)
+        resolved_image, image_training_metrics = DIP_ISR(LR_image, HR_image, factor, training_config, use_GT=True, verbose=verbose)
 
         # Accumulate metrics
         resolved_image = resolved_image.to(device)
@@ -138,6 +154,9 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
     
         running_psnr += psnr(resolved_image, HR_image)
         running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
+
+        training_metrics['psnr'] += np.array(image_training_metrics)
+        training_metrics['ssim'] += np.array(image_training_metrics)
 
         if verbose:
             print("Done.")
@@ -159,6 +178,12 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
     avg_psnr = running_psnr / num_images
     avg_ssim = running_ssim / num_images
     avg_lpips = running_lpips / num_images
+
+    # Calculate training metric averages and convert to list for log saving
+    training_metrics = {
+        'avg_psnr' : np.divide(training_metrics['psnr'], num_images).tolist(),
+        'avg_ssim' : np.divide(training_metrics['ssim'], num_images).tolist()
+    }
     
     # Save metrics log
     save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **{'Iterations per image' : training_config['num_epochs']})
@@ -178,7 +203,7 @@ def DIP_ISR_Batch_inf(factor, dataset, training_config, output_dir, num_images, 
             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_epochs']} iterations. ")
 
         # Perform DIP SISR for the current image
-        resolved_image = DIP_ISR(LR_image, HR_image, factor, training_config, use_GT=False, verbose=True)
+        resolved_image, _ = DIP_ISR(LR_image, HR_image, factor, training_config, use_GT=False, verbose=True)
 
         if verbose:
             print("Done.")
@@ -202,45 +227,106 @@ def DIP_ISR_Batch_inf(factor, dataset, training_config, output_dir, num_images, 
     
 if __name__ == '__main__':
 
-    # Determine program behaviour
-    verbose = True
-    batch_mode = 'eval' # 'inf'
-    num_images = 1 # -1 for entire dataset, 1 for a running DIP on a single image
+    parser = argparse.ArgumentParser()
 
-    # DIP evaluation settings
-    save_batch_output = True
+    # Get command line arguments for program behaviour
+    parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
+    parser.add_argument('--mode', type=str, help='"eval": do ISR using DIP on images and provide evaluation metrics "inf" just do ISR using DIP and save result', required=True)
+    parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=-1)
+    parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
+    parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
+    parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
+    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
+    parser.add_argument('--verbose', type=bool, help='Informative command line output during execution', default=False)
+    parser.add_argument('--save_output', type=bool, help='Save output when --mode=eval', default=False)
+    args = parser.parse_args()
 
-    # Set the output directory
-    output_dir = os.path.join(os.getcwd(), rf'out\DIP\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    cwd = args.out_dir
 
-    # Super resolution scale factor (excluding additional 2x downsampling)
-    factor = 4
+    if not os.path.exists(cwd) or not os.path.isdir(cwd):
+        print(f'{cwd} not found.')
+        sys.exit(1)
 
-    # Get the dataset with or without GT as required
-    LR_dir = 'data/DIV2K_train_LR_x8/'
-    HR_dir = 'data/DIV2K_train_HR/'
+    # Get dataset
+    LR_dir = os.path.join(cwd, 'data/DIV2K_train_LR_x8/')
+    HR_dir = os.path.join(cwd, 'data/DIV2K_train_HR/') # = '' if not using HR GT for evaluation
+    
+    # Set the output and trained model directory
+    output_dir = os.path.join(cwd, rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    trained_dir = os.path.join(cwd, r'trained\GAN')
+
+    # Program mode i.e. 'train' for training, 'eval' for evaluation
+    mode = args.mode
+
+    model_path = ''
+    if args.model_path:
+        # Inference settings (if mode = 'inf')
+        model_path = args.model_path 
+
+    if model_path == '' and mode == 'eval':
+        print(f'Must provide a model with --model flag to perform evaluation with.')
+        sys.exit(1)
+
+    # Display information during running
+    verbose = args.verbose
+
+    # Number of images from the dataset to use
+    num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
+
+    if num_images <= -1 or num_images == 0:
+        print(f'Please provide a valid number of images to use with --num_images=-1 for entire dataset or --num_images > 0')
+        sys.exit(1)
+
+    # Super resolution scale factor
+    factor = 8
+    
+    # Degredation
+    downsample = args.downsample
+    if downsample:
+        factor *= 2
+
+    # Noise
+    noise_type = args.noise_type 
+    if not noise_type and args.noise_param:
+        print(f'Must provide noise type with --noise_type if providing noise parameter with --noise_param')
+        sys.exit(1)
+
+    if noise_type:
+        if not args.noise_param:
+                print(f'Must provide a noise parameter with --noise_param to use noise.')
+                sys.exit(1)
+        if args.noise_param < 0 or args.noise_param > 1:
+            print(f'Noise parameter must be in range [0,1].')
+            sys.exit(1)
+            
+        if noise_type == 'gauss':
+            noise_type = {
+                'type' : 'Gaussian',
+                'std': args.noise_param,
+            }
+        elif noise_type == 'saltpepper':
+            noise_type = {
+                'type' : 'SaltAndPepper',
+                's' : args.noise_param,
+                'p' : args.noise_param
+            }
+        else:
+            print(f'Noise type {args.noise_type} not supported. Use either --noise_type=gauss or --noise_type=saltpepper')
+            sys.exit(1)
+
+    if (noise_type and mode == 'train') or (downsample and mode == 'train'):
+        print(f'Noise and downsampling are only supported when evaluating (--mode=eval)')
+        sys.exit(1)
+
+    # Whether to save output when evaluating
+    save_output = args.save_output
 
     # use_GT is used as a check to get performance metrics or not which require ground truth
     use_GT = True if HR_dir else False
     if verbose: assert(use_GT), 'Verbose makes the performance metrics visible during training which require ground truths.'
     
-    # Degredation
-    downsample = False
-    if downsample: factor *= 2
-    noise_type = {
-        'type' : 'Gaussian',
-        'std': 200,
-    }
-    noise_type = {
-        'type' : 'SaltAndPepper',
-        's' : 0.01,
-        'p' : 0.01
-    }
-    # noise_type = None
-
     # Hyperparameters
     learning_rate = 0.01
-    reg_noise_std = 0.05
     optimiser_type = 'adam'
 
     if downsample:
@@ -262,11 +348,11 @@ if __name__ == '__main__':
         print(f"Performing DIP SISR on {num_images} images.")
         print(f"Output directory: {output_dir}")
 
-    if batch_mode == 'eval':
+    if mode == 'eval':
         dataset = DIPDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, HR_dir=HR_dir, num_images=num_images)
 
-        DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_batch_output, num_images, verbose)
-    elif batch_mode == 'inf':
+        DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_output, num_images, verbose)
+    elif mode == 'inf':
         dataset = DIPDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images)
 
         DIP_ISR_Batch_inf(factor, dataset, training_config, output_dir ,num_images, verbose)
