@@ -155,14 +155,13 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
                         out = out_G[i]
                         HR_patch = HR_patches[i].numpy()
                         batch_psnr.append(psnr(out, HR_patch))
-                        batch_ssim.append(ssim(out, HR_patch, channel_axis=0))
-
+                        batch_ssim.append(ssim(out, HR_patch, channel_axis=0, data_range=1.0))
                         
                     del LR_patches
 
                 
-                psnr.append(sum(batch_psnr)/patches)
-                ssim.append(sum(batch_ssim)/patches)
+                epoch_psnr.append(sum(batch_psnr)/patches)
+                epoch_ssim.append(sum(batch_ssim)/patches)
 
         if epoch % 1  == 0:
             training_metrics['avg_psnr'].append(sum(epoch_psnr)/batches)
