@@ -109,7 +109,7 @@ class DIPDIV2KDataset(Dataset):
     
 
 class GANDIV2KDataset(Dataset):
-    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, HR_patch_size=(96,96), num_patches=16, train=False):
+    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, LR_patch_size=(96,96), num_patches=16, train=False):
         super(GANDIV2KDataset, self).__init__()
 
         self.train = train
@@ -129,40 +129,38 @@ class GANDIV2KDataset(Dataset):
             self.LR_images = self.LR_images[:num_images]
             self.HR_images = self.HR_images[:num_images]
 
-        self.HR_patch_size = HR_patch_size
+        self.LR_patch_size = LR_patch_size
         self.num_patches = num_patches
 
-    def get_train_patches(self, LR_image, HR_image, scale_factor, HR_patch_size=(96, 96), num_patches=16):
+    def get_train_patches(self, LR_image, HR_image):
     
         # Get size of HR image and it's patch size
-        _, HR_H, HR_W = HR_image.size()
-        HR_patch_W, HR_patch_H = HR_patch_size
+        _, LR_H, LR_W = LR_image.size()
+        LR_patch_W, LR_patch_H = self.LR_patch_size
 
-        LR_patches = torch.empty((num_patches, 3, int(HR_patch_H/scale_factor), int(HR_patch_W/scale_factor)), dtype=torch.float32)
-        HR_patches = torch.empty((num_patches, 3, HR_patch_H, HR_patch_W), dtype=torch.float32)
+        LR_patches = torch.empty((self.num_patches, 3, LR_patch_H, LR_patch_W), dtype=torch.float32)
+        HR_patches = torch.empty((self.num_patches, 3, LR_patch_H * self.scale_factor, LR_patch_W * self.scale_factor), dtype=torch.float32)
 
-        for i in range(num_patches):
+        for i in range(self.num_patches):
             # Get center of the HR patch
-            HR_center_x = np.random.randint(HR_patch_W // 2, HR_W - HR_patch_W // 2)
-            HR_center_y = np.random.randint(HR_patch_H // 2, HR_H - HR_patch_H // 2)
+            LR_center_x = np.random.randint(LR_patch_W // 2, LR_W - LR_patch_W // 2)
+            LR_center_y = np.random.randint(LR_patch_H // 2, LR_H - LR_patch_H // 2)
 
-            # Get the HR and LR patch edges
-            HR_left = int( HR_center_x - HR_patch_W // 2 )
-            HR_right = int( HR_left + HR_patch_W )
-            HR_top = int( HR_center_y - HR_patch_H // 2 ) 
-            HR_bottom = int( HR_top + HR_patch_H )
+            # Get LR patch edges
+            LR_left = int( LR_center_x - LR_patch_W // 2 )
+            LR_right = int( LR_left + LR_patch_W )
+            LR_top = int( LR_center_y - LR_patch_H // 2 ) 
+            LR_bottom = int( LR_top + LR_patch_H )
 
+            # Get HR patch edges
+            HR_left = LR_left * self.scale_factor 
+            HR_right = LR_right * self.scale_factor 
+            HR_top = LR_top * self.scale_factor 
+            HR_bottom = LR_bottom * self.scale_factor 
 
-            LR_left = int( HR_left / scale_factor )
-            LR_right = int( HR_right / scale_factor )
-            LR_top = int( HR_top / scale_factor )
-            LR_bottom = int( HR_bottom / scale_factor )
-
-            # Extract HR and LR patches
-            HR_patch = HR_image[:, HR_top:HR_bottom, HR_left:HR_right]
-
+            # Extract LR and LR patches
             LR_patch = LR_image[:, LR_top:LR_bottom, LR_left:LR_right]
-
+            HR_patch = HR_image[:, HR_top:HR_bottom, HR_left:HR_right]
 
             # Add to patches tensor stack
             HR_patches[i] = HR_patch
@@ -179,7 +177,7 @@ class GANDIV2KDataset(Dataset):
 
         # If training use image patches:
         if self.train:
-            LR_patches, HR_patches = self.get_train_patches(LR_image, HR_image, self.scale_factor, self.HR_patch_size, self.num_patches)
+            LR_patches, HR_patches = self.get_train_patches(LR_image, HR_image)
 
             return LR_patches, HR_patches, filename
 

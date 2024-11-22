@@ -2,7 +2,6 @@ import torch
 import os
 from datetime import datetime
 import time
-import gc
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
@@ -18,27 +17,26 @@ dtype = torch.cuda.FloatTensor
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, verbose=False):
+
+def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, verbose=False, reg_noise_std=0.05):
     # Perform DIP ISR on a single image
 
     # Define DIP network
-    net = get_DIP_network(input_depth=32, pad='reflection').to(device)
+    net = get_DIP_network(input_depth=4, pad='reflection').to(device)
 
     # Define loss
     mse = torch.nn.MSELoss().to(device)
 
     # Get the downsampler used to optimise
-    downsampler = Downsampler(n_planes=3, factor=factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device).type(dtype)
+    downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).type(dtype)
 
     # Get fixed noise for the network input
-    net_input = get_noise(32, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).type(dtype).detach().cpu().numpy()
-    
-    # Include regulariser noise
-    if reg_noise_std > 0:
-        net_input += (np.random.normal(loc=0.0, scale=1.0, size=net_input.shape) * reg_noise_std)
+    net_input = get_noise(4, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).type(dtype).detach()
+    net_input_saved = net_input.detach().clone()
+    noise = net_input.detach().clone()
 
     # Put everything on the GPU
-    net_input = np_to_torch(net_input).squeeze(0).to(device)
+    #net_input = np_to_torch(net_input).squeeze(0).to(device)
     LR_image = LR_image.to(device).unsqueeze(0).detach()
     HR_image = HR_image.to(device).unsqueeze(0).detach()
     HR_image_np = HR_image.detach().cpu().numpy()[0] # For evaluation metrics
@@ -49,7 +47,14 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
 
     # Define closure for training
     def closure():
-        nonlocal i
+        nonlocal i, net_input
+
+         # Include regulariser noise
+        if reg_noise_std > 0:
+            net_input = net_input_saved + (noise.normal_() * reg_noise_std)
+
+
+        print(f'Iteration {i}: {torch.cuda.memory_allocated()}')
 
         # Get iteration start time
         start_time = time.time()
@@ -235,9 +240,15 @@ if __name__ == '__main__':
 
     # Hyperparameters
     learning_rate = 0.01
-    num_epochs = 1
     reg_noise_std = 0.05
     optimiser_type = 'adam'
+
+    if downsample:
+        num_epochs = 8000
+        reg_noise_std = 0.07
+    else:
+        num_epochs = 2000
+        reg_noise_std = 0.05
 
     # Define the training configuration using above
     training_config = {

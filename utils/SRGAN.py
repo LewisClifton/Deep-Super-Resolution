@@ -1,9 +1,6 @@
-import torch.nn.functional as F
-
 from torchvision.models import vgg19, VGG19_Weights
 import torch.nn as nn
 import torch
-import numpy as np
 
 
 
@@ -81,13 +78,13 @@ class Vgg19Loss(nn.Module):
                 param.requires_grad = False
     
     def forward(self, image1, image2):
+        
+        with torch.no_grad():
+            # Get the vgg feature maps of the images
+            feature_map1 = self.net(image1)
+            feature_map2 = self.net(image2)
 
-        # Get the vgg feature maps of the images
-       
-        feature_map1 = self.net(image1)
-        feature_map2 = self.net(image2)
+            # VGG loss is simply mse of the feature maps from the VGG network
+            vgg_loss = self.mse(feature_map1, feature_map2)
 
-        # VGG loss is simply mse of the feature maps from the VGG network
-        vgg_loss = self.mse(feature_map1, feature_map2)
-
-        return vgg_loss
+            return vgg_loss

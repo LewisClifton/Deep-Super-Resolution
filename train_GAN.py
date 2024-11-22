@@ -1,5 +1,7 @@
 import torch
 import os
+import argparse
+import sys
 from torch.utils.data import DataLoader
 from datetime import datetime
 import time
@@ -17,23 +19,73 @@ torch.backends.cudnn.enabled = True
 dtype = torch.cuda.FloatTensor
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    # Generator loss
+def get_adversarial_loss(fake_output, bce_loss):
+    adversarial_loss = bce_loss(fake_output, torch.ones_like(fake_output))
+    return adversarial_loss
+
+# Discriminator loss
+def get_loss_D(real_output, fake_output, bce_loss):
+    real_loss = bce_loss(real_output, torch.ones_like(real_output))
+    fake_loss = bce_loss(fake_output, torch.zeros_like(fake_output))
+    loss_D = real_loss + fake_loss
+    return loss_D
+
+# Get generator training loss function
+class PerceptualLoss():
+    def __init__(self, content_loss_fn):
+        self.content_loss_fn = content_loss_fn
+
+    def __call__(self, fake_output_G, HR_images, fake_output_D, bce_loss):
+        # Content less: MSE loss or vgg loss
+        self.content_loss_fn.to(device)
+        content_loss = self.content_loss_fn(fake_output_G, HR_images)
+        self.content_loss_fn.cpu() # keep on cpu until needed for loss calculation
+
+        # Adversarial loss
+        bce_loss.to(device)
+        adversarial_loss_ = get_adversarial_loss(fake_output_D, bce_loss)
+        bce_loss.cpu()
+
+        # Perceptual loss
+        perceptual_loss = content_loss + adversarial_loss_
+
+        return perceptual_loss
+
 
 def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=False):
     # Train GAN to perform SISR
+
+    #print(f"Start of training: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
+    # Get loss functions
+    bce_loss = nn.BCELoss()#.to(device)
+    vgg_loss = Vgg19Loss()#.to(device)
+    # mse_loss = nn.MSELoss().to(device)
+    perceptualLoss = PerceptualLoss(vgg_loss) # PerceptualLoss(mse)
+    
+    optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
+    optim_D = torch.optim.Adam(gan_D.parameters(), lr=1e-4)
     
     def do_epoch(LR_images, HR_images):
 
+        # print(f"Before LR, HR on gpu: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
+        LR_images = LR_images.to(device)
+        HR_images = HR_images.to(device)
+
+        #print(f"Before train D: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
         # Train Discriminator
         real_output_D = gan_D(HR_images) # Discriminator output for real HR images
         
         fake_output_G = gan_G(LR_images) # Generator output for LR images
         fake_output_D = gan_D(fake_output_G.detach()) # Discriminator output for fake HR images (i.e. generated from LR by generator)
-        loss_D = get_loss_D(real_output_D, fake_output_D)
+        loss_D = get_loss_D(real_output_D, fake_output_D, bce_loss)
 
         # Update Discriminator
         gan_D.zero_grad()
         loss_D.backward()
         optim_D.step()
+
+        #print(f"After train D: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
         # Train Generator
         fake_output_G = gan_G(LR_images)
@@ -45,6 +97,13 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         loss_G.backward()
         optim_G.step()
 
+        #print(f"After train G: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
+
+        del fake_output_D, fake_output_G
+        del real_output_D
+        del LR_images, HR_images
+
+        #print(f"After del: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
         return loss_D, loss_G
     
@@ -68,9 +127,6 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
             # Stack the patches along the batch dimension
             LR_patches = LR_patches.view(-1, 3, LR_patches.shape[3], LR_patches.shape[4])
             HR_patches = HR_patches.view(-1, 3, HR_patches.shape[3], HR_patches.shape[4])
-
-            LR_patches = LR_patches.to(device)
-            HR_patches = HR_patches.to(device)
             
             loss_D, loss_G = do_epoch(LR_patches, HR_patches)
 
@@ -187,84 +243,108 @@ def GAN_ISR_Batch_inf(gan_G, dataset, output_dir, batch_size, verbose=False):
 
 if __name__ == '__main__':
 
-    # Determine program behaviour
-    verbose = True
-    mode = 'eval' # 'inf', 'train', 'eval'
-    num_images = 3 # -1 for entire dataset, 1 for a running GAN on a single image
+    parser = argparse.ArgumentParser()
 
-    # Inference settings (if mode = 'inf')
-    model_path = r'trained\GAN\2024_11_20_PM02_50.pth'
-    
-    # Set the output and trained model directory
-    output_dir = os.path.join(os.getcwd(), rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
-    trained_dir = os.path.join(os.getcwd(), r'trained\GAN')
+    # Get command line arguments for program behaviour
+    parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
+    parser.add_argument('--mode', type=str, help='"train": train model, "eval": get evaluation metrics of trained model over test set', required=True)
+    parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=-1)
+    parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
+    parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
+    parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
+    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
+    parser.add_argument('--verbose', type=bool, help='Informative command line output during execution', default=False)
+    args = parser.parse_args()
 
-    # Super resolution scale factor
-    factor = 4
+    cwd = args.out_dir
+
+    if not os.path.exists(cwd) or not os.path.isdir(cwd):
+        print(f'{cwd} not found.')
+        sys.exit(1)
 
     # Get dataset
-    LR_dir = 'data/DIV2K_train_LR_x8/'
-    HR_dir = 'data/DIV2K_train_HR/' # = '' if not using HR GT for evaluation
+    LR_dir = os.path.join(cwd, 'data/DIV2K_train_LR_x8/')
+    HR_dir = os.path.join(cwd, 'data/DIV2K_train_HR/') # = '' if not using HR GT for evaluation
+    
+    # Set the output and trained model directory
+    output_dir = os.path.join(cwd, rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    trained_dir = os.path.join(cwd, r'trained\GAN')
+
+    # Program mode i.e. 'train' for training, 'eval' for evaluation
+    mode = args.mode
+
+    model_path = ''
+    if args.model_path:
+        # Inference settings (if mode = 'inf')
+        model_path = args.model_path 
+
+    if model_path == '' and mode == 'eval':
+        print(f'Must provide a model with --model flag to perform evaluation with.')
+        sys.exit(1)
+
+    # Display information during running
+    verbose = args.verbose
+
+    # Number of images from the dataset to use
+    num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
+
+    if num_images <= -1 or num_images == 0:
+        print(f'Please provide a valid number of images to use with --num_images=-1 for entire dataset or --num_images > 0')
+        sys.exit(1)
+
+    # Super resolution scale factor
+    factor = 8
 
     # Degredation
-    downsample = False
-    noise_type = {
-        'type' : 'Gaussian',
-        'std': 200,
-    }
-    noise_type = {
-        'type' : 'SaltAndPepper',
-        's' : 0.01,
-        'p' : 0.01
-    }
-    noise_type = None
+    downsample = args.downsample
 
-    # Get loss functions
-    bce_loss = nn.BCELoss().to(device)
-    vgg_loss = Vgg19Loss().to(device)
-    mse_loss = nn.MSELoss().to(device)
+    # Noise
+    noise_type = args.noise_type 
+    if not noise_type and args.noise_param:
+        print(f'Must provide noise type with --noise_type if providing noise parameter with --noise_param')
+        sys.exit(1)
 
-    # Generator loss
-    def get_adversarial_loss(fake_output):
-        adversarial_loss = bce_loss(fake_output, torch.ones_like(fake_output))
-        return adversarial_loss
+    if noise_type:
+        if not args.noise_param:
+                print(f'Must provide a noise parameter with --noise_param to use noise.')
+                sys.exit(1)
+        if args.noise_param < 0 or args.noise_param > 1:
+            print(f'Noise parameter must be in range [0,1].')
+            sys.exit(1)
+            
+        if noise_type == 'gauss':
+            noise_type = {
+                'type' : 'Gaussian',
+                'std': args.noise_param,
+            }
+        elif noise_type == 'saltpepper':
+            noise_type = {
+                'type' : 'SaltAndPepper',
+                's' : args.noise_param,
+                'p' : args.noise_param
+            }
+        else:
+            print(f'Noise type {args.noise_type} not supported. Use either --noise_type=gauss or --noise_type=saltpepper')
+            sys.exit(1)
 
-    # Discriminator loss
-    def get_loss_D(real_output, fake_output):
-        real_loss = bce_loss(real_output, torch.ones_like(real_output))
-        fake_loss = bce_loss(fake_output, torch.zeros_like(fake_output))
-        loss_D = real_loss + fake_loss
-        return loss_D
+    if (noise_type and mode == 'train') or (downsample and mode == 'train'):
+        print(f'Noise and downsampling are only supported when evaluating (--mode=eval)')
+        sys.exit(1)
 
-    # Get generator training loss function
-    class PerceptualLoss():
-        def __init__(self, content_loss_fn):
-            self.content_loss_fn = content_loss_fn
-
-        def __call__(self, fake_output_G, HR_images, fake_output_D):
-            # Content less: MSE loss or vgg loss
-            content_loss = self.content_loss_fn(fake_output_G, HR_images)
-            adversarial_loss_ = get_adversarial_loss(fake_output_D)
-
-            perceptual_loss = content_loss + adversarial_loss_
-
-            return perceptual_loss
-        
-    perceptualLoss = PerceptualLoss(vgg_loss) # PerceptualLoss(mse)
-
+    #print(f"Before loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
     # Get generator and discriminator
     gan_G = Generator().to(device)
-    gan_D = Discriminator().to(device)
+    if mode == 'train':
+        gan_D = Discriminator().to(device)
+    #print(f"After loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
     # Train hyperparameters
-    batch_size = 4
+    batch_size = 2
     num_epoch = 2 # 1e+5 in paper
-    optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
-    optim_D = torch.optim.Adam(gan_D.parameters(), lr=1e-4)
 
     # Decide to train or do inference on batch of LR images
     if mode == 'train':
-        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, HR_dir=HR_dir, downsample=downsample, noise_type=noise_type, train=True)
+        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=(48,48), HR_dir=HR_dir, downsample=downsample, noise_type=noise_type, train=True)
 
         batch_size = num_images if batch_size > num_images else batch_size
 
