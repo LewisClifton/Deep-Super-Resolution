@@ -260,7 +260,7 @@ if __name__ == '__main__':
     HR_dir = os.path.join(cwd, 'data/DIV2K_train_HR/') # = '' if not using HR GT for evaluation
     
     # Set the output and trained model directory
-    output_dir = os.path.join(cwd, rf'out\GAN\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    output_dir = os.path.join(cwd, rf'out\DIP\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
     trained_dir = os.path.join(cwd, r'trained\GAN')
 
     # Program mode i.e. 'train' for training, 'eval' for evaluation
