@@ -332,7 +332,7 @@ if __name__ == '__main__':
     if downsample:
         factor *= 2
 
-    HR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
+    LR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
 
     # Noise
     noise_type = args.noise_type 
@@ -380,7 +380,7 @@ if __name__ == '__main__':
 
     # Decide to train or do inference on batch of LR images
     if mode == 'train':
-        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=(48,48), HR_dir=HR_dir, downsample=downsample, noise_type=noise_type, train=True)
+        dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=LR_patch_size, HR_dir=HR_dir, downsample=downsample, noise_type=noise_type, train=True)
 
         batch_size = num_images if batch_size > num_images else batch_size
 

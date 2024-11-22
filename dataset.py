@@ -3,7 +3,6 @@ import cv2
 import os
 from torchvision import transforms
 import numpy as np
-import torch
 from utils.degradation import *
 
 
@@ -109,7 +108,7 @@ class DIPDIV2KDataset(Dataset):
     
 
 class GANDIV2KDataset(Dataset):
-    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, LR_patch_size=(96,96), train=False):
+    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, LR_patch_size=None, train=False):
         super(GANDIV2KDataset, self).__init__()
 
         self.train = train
