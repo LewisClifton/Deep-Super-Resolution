@@ -139,20 +139,19 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
             iteration_losses_D.append(loss_D.detach().item())
             iteration_losses_G.append(loss_G.detach().item())
 
-
-            batch_psnr = []
-            batch_ssim = []
             if epoch % 1 == 0:
                 with torch.no_grad():
-                    LR_patch = LR_patches[i].to(device)
-                    out_G = gan_G(LR_patch).detach().cpu().numpy()
+                    batch_psnr = []
+                    batch_ssim = []
+                    
                     for i in range(batch_size):
-                        
+                        LR_patch = LR_patches[i].to(device)
+                        out_G = gan_G(LR_patch).detach().cpu().numpy()
                         HR_patch = HR_patches[i].numpy()
                         batch_psnr.append(psnr(out_G[i], HR_patch))
                         batch_ssim.append(ssim(out_G[i], HR_patch, channel_axis=0, data_range=1.0))
                         
-                    del LR_patch, out_G
+                        del LR_patch, out_G
                     epoch_psnr.append(sum(epoch_psnr)/batch_size)
                     epoch_ssim.append(sum(epoch_ssim)/batch_size)
 
@@ -326,15 +325,14 @@ if __name__ == '__main__':
     factor = 8
 
     # Generator input size
-    LR_patch_size = (48,48)
+    HR_patch_size = (96,96)
     
     # Degredation
     downsample = args.downsample
     if downsample:
         factor *= 2
-        LR_patch_size = (24, 24) # factor 16 is big so make the patches smaller
 
-    HR_patch_size = (LR_patch_size[0] * factor, LR_patch_size[1] * factor)
+    HR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
 
     # Noise
     noise_type = args.noise_type 
