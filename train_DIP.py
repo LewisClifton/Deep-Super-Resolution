@@ -4,6 +4,7 @@ from datetime import datetime
 import time
 import argparse
 import sys
+import lpips as lpips_
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
@@ -136,6 +137,8 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
         'ssim' : np.zeros(shape=(training_config['num_epochs']))
     }
 
+    lpips_model = lpips_.LPIPS(net='alex').to(torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
+
     # Perform SISR using DIP for num_images many images
     for idx in range(num_images):   
         
@@ -150,7 +153,7 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
         # Accumulate metrics
         resolved_image = resolved_image.to(device)
         HR_image = HR_image.to(device)
-        running_lpips += lpips(resolved_image, HR_image)
+        running_lpips += lpips(resolved_image, HR_image, lpips_model)
         resolved_image = np.clip(resolved_image.cpu().numpy()[0], 0, 1)
         HR_image = np.clip(HR_image.cpu().numpy(), 0, 1)
     
