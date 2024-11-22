@@ -280,7 +280,6 @@ if __name__ == '__main__':
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
     parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
     parser.add_argument('--verbose', type=bool, help='Informative command line output during execution', default=False)
-    
     args = parser.parse_args()
 
     cwd = args.out_dir

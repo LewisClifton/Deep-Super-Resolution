@@ -97,7 +97,7 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
         return total_loss
 
     # Iteratively optimise over the noise 
-    optimize(training_config['optimiser_type'], params, closure, training_config['learning_rate'], training_config['num_epochs'])
+    optimize('adam', params, closure, training_config['learning_rate'], training_config['num_epochs'])
     resolved_image = net(net_input).detach().cpu()
     
     # Delete everything to ensure GPU memory is freed up
@@ -168,6 +168,8 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
         if verbose:
             print("\n")
 
+        del LR_image, HR_image, resolved_image
+
     print(f"Done for all {num_images} images.")
 
     # Get run time
@@ -231,14 +233,15 @@ if __name__ == '__main__':
 
     # Get command line arguments for program behaviour
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
-    parser.add_argument('--mode', type=str, help='"eval": do ISR using DIP on images and provide evaluation metrics "inf" just do ISR using DIP and save result', required=True)
-    parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=-1)
+    parser.add_argument('--mode', type=str, help='"train": train model, "eval": get evaluation metrics of trained model over test set', required=True)
+    parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
+    parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
+    parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=1)
     parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
     parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
     parser.add_argument('--verbose', type=bool, help='Informative command line output during execution', default=False)
-    parser.add_argument('--save_output', type=bool, help='Save output when --mode=eval', default=False)
     args = parser.parse_args()
 
     cwd = args.out_dir
@@ -327,7 +330,6 @@ if __name__ == '__main__':
     
     # Hyperparameters
     learning_rate = 0.01
-    optimiser_type = 'adam'
 
     if downsample:
         num_epochs = 8000
@@ -336,12 +338,14 @@ if __name__ == '__main__':
         num_epochs = 2000
         reg_noise_std = 0.05
 
+    if args.num_epochs:
+        num_epochs = args.num_epochs
+
     # Define the training configuration using above
     training_config = {
         "learning_rate" : learning_rate,
         "num_epochs" : num_epochs,
-        "reg_noise_std" : reg_noise_std,
-        "optimiser_type" : optimiser_type
+        "reg_noise_std" : reg_noise_std
     }
 
     if verbose:
