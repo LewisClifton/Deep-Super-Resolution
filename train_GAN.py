@@ -133,12 +133,6 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         
         # Iterate over a batch
         for _, (LR_patches, HR_patches, _) in enumerate(train_loader):
-            
-            LR_patches = LR_patches
-            HR_patches = HR_patches
-            print(LR_patch.shape)
-            print(HR_patch.shape)
-            quit()
 
             loss_D, loss_G = do_epoch(LR_patch, HR_patch)
 
