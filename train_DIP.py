@@ -236,6 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, help='"train": train model, "eval": get evaluation metrics of trained model over test set', required=True)
     parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
+    parser.add_argument('--save_output', type=bool, help='Whether to save output when evaluating (--model=eval)', default=False)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=1)
     parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
@@ -276,7 +277,7 @@ if __name__ == '__main__':
     # Number of images from the dataset to use
     num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
 
-    if num_images <= -1 or num_images == 0:
+    if num_images < -1 or num_images == 0:
         print(f'Please provide a valid number of images to use with --num_images=-1 for entire dataset or --num_images > 0')
         sys.exit(1)
 
