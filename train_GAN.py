@@ -147,8 +147,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
                         LR_patch = LR_patches[i].unsqueeze(0).to(device)
                         out_G = gan_G(LR_patch).detach().cpu().numpy().squeeze(0)
                         HR_patch = HR_patches[i].numpy()
-                        batch_psnr.append(psnr(out_G[i], HR_patch))
-                        batch_ssim.append(ssim(out_G[i], HR_patch, channel_axis=0, data_range=1.0))
+                        batch_psnr.append(psnr(out_G, HR_patch))
+                        batch_ssim.append(ssim(out_G, HR_patch, channel_axis=0, data_range=1.0))
                         
                         del LR_patch, out_G
                     epoch_psnr.append(sum(epoch_psnr)/batch_size)
