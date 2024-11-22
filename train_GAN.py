@@ -5,6 +5,7 @@ import sys
 from torch.utils.data import DataLoader
 from datetime import datetime
 import time
+import lpips as lpips_
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator
@@ -188,6 +189,8 @@ def GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=False):
     running_lpips = 0
     start_time = time.time()
 
+    lpips_model = lpips_.LPIPS(net='alex').to(torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
+
     # Perform SISR using the generator for batch_size many images
     for idx in range(batch_size):   
         LR_image, HR_image, image_name = dataset[idx]
@@ -201,7 +204,7 @@ def GAN_ISR_Batch_eval(gan_G, dataset, output_dir, batch_size, verbose=False):
         resolved_image = gan_G(LR_image)
 
         # Accumulate metrics
-        running_lpips += lpips(resolved_image, HR_image)
+        running_lpips += lpips(resolved_image, HR_image, lpips_model)
        
         resolved_image = np.clip(torch_to_np(resolved_image), 0, 1)
         HR_image = np.clip( torch_to_np(HR_image), 0, 1)
