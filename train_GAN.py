@@ -127,6 +127,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
             # Stack the patches along the batch dimension
             LR_patches = LR_patches.view(-1, 3, LR_patches.shape[3], LR_patches.shape[4])
             HR_patches = HR_patches.view(-1, 3, HR_patches.shape[3], HR_patches.shape[4])
+
+            print(HR_patches.shape)
+            quit()
             
             loss_D, loss_G = do_epoch(LR_patches, HR_patches)
 
@@ -331,16 +334,20 @@ if __name__ == '__main__':
         print(f'Noise and downsampling are only supported when evaluating (--mode=eval)')
         sys.exit(1)
 
+    # Generator and Discriminator input size
+    LR_patch_size = (48,48)
+    HR_patch_size = (LR_patch_size[0] * factor, LR_patch_size[1] * factor)
+
     #print(f"Before loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
     # Get generator and discriminator
     gan_G = Generator().to(device)
     if mode == 'train':
-        gan_D = Discriminator().to(device)
+        gan_D = Discriminator(HR_patch_size).to(device)
     #print(f"After loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
     # Train hyperparameters
-    batch_size = 2
-    num_epoch = 2 # 1e+5 in paper
+    batch_size = 1
+    num_epoch = 1 # 1e+5 in paper
 
     # Decide to train or do inference on batch of LR images
     if mode == 'train':
