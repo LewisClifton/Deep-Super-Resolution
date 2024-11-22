@@ -112,10 +112,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
     train_start_time = time.time()
 
-    training_metrics = {
-        'avg_psnr' : [],
-        'avg_ssim' : []
-    }
+
+    avg_psnr = []
+    avg_ssim =[]
 
     for epoch in range(num_epoch):
 
@@ -145,8 +144,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
                     batch_ssim = []
                     
                     for i in range(batch_size):
-                        LR_patch = LR_patches[i].to(device)
-                        out_G = gan_G(LR_patch).detach().cpu().numpy()
+                        LR_patch = LR_patches[i].unsqueeze(0).to(device)
+                        out_G = gan_G(LR_patch).detach().cpu().numpy().squeeze(0)
                         HR_patch = HR_patches[i].numpy()
                         batch_psnr.append(psnr(out_G[i], HR_patch))
                         batch_ssim.append(ssim(out_G[i], HR_patch, channel_axis=0, data_range=1.0))
@@ -156,17 +155,14 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
                     epoch_ssim.append(sum(epoch_ssim)/batch_size)
 
         if epoch % 1  == 0:
-            training_metrics['avg_psnr'].append(sum(epoch_psnr)/batches)
-            training_metrics['avg_ssim'].append(sum(epoch_ssim)/batches)
+            avg_psnr.append(sum(epoch_psnr)/batches)
+            avg_ssim.append(sum(epoch_ssim)/batches)
 
             if verbose:
                     print(f"Epoch {epoch+1}/{num_epoch}:")
                     print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
                     print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
                     print(f"Epoch run time: {time.time() - start_time}")
-
-    print(training_metrics['avg_psnr'])
-    print(training_metrics['avg_ssim'])
 
     # Get run time
     train_runtime = time.time() - train_start_time
@@ -180,7 +176,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         print(f"Epoch run time: {time.time() - start_time}")
 
     # Save metrics log and model
-    save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir, **training_metrics )
+    save_log(num_images, train_runtime, avg_psnr, avg_ssim, "N/a (LPIPS uses too much GPU memory when training)", output_dir)
     save_model(gan_G.module, output_dir)
 
 
