@@ -181,12 +181,12 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
 
     # Calculate training metric averages and convert to list for log saving
     training_metrics = {
-        'avg_psnr' : np.divide(training_metrics['psnr'], num_images).tolist(),
-        'avg_ssim' : np.divide(training_metrics['ssim'], num_images).tolist()
+        'Average PSNR per epoch' : np.divide(training_metrics['psnr'], num_images).tolist(),
+        'Average SSIM per epoch' : np.divide(training_metrics['ssim'], num_images).tolist()
     }
-    
-    # Save metrics log
-    save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **{'Iterations per image' : training_config['num_epochs']})
+
+    # Save metrics log (don't need to save model for DIP)
+    save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **{**training_config, **training_metrics })
 
 
 def DIP_ISR_Batch_inf(factor, dataset, training_config, output_dir, num_images, verbose=False):

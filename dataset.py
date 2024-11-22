@@ -109,7 +109,7 @@ class DIPDIV2KDataset(Dataset):
     
 
 class GANDIV2KDataset(Dataset):
-    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, LR_patch_size=(96,96), num_patches=16, train=False):
+    def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None, LR_patch_size=(96,96), train=False):
         super(GANDIV2KDataset, self).__init__()
 
         self.train = train
@@ -130,7 +130,6 @@ class GANDIV2KDataset(Dataset):
             self.HR_images = self.HR_images[:num_images]
 
         self.LR_patch_size = LR_patch_size
-        self.num_patches = num_patches
 
     def get_train_patches(self, LR_image, HR_image):
     
@@ -138,35 +137,27 @@ class GANDIV2KDataset(Dataset):
         _, LR_H, LR_W = LR_image.size()
         LR_patch_W, LR_patch_H = self.LR_patch_size
 
-        LR_patches = torch.empty((self.num_patches, 3, LR_patch_H, LR_patch_W), dtype=torch.float32)
-        HR_patches = torch.empty((self.num_patches, 3, LR_patch_H * self.scale_factor, LR_patch_W * self.scale_factor), dtype=torch.float32)
+        # Get center of the HR patch
+        LR_center_x = np.random.randint(LR_patch_W // 2, LR_W - LR_patch_W // 2)
+        LR_center_y = np.random.randint(LR_patch_H // 2, LR_H - LR_patch_H // 2)
 
-        for i in range(self.num_patches):
-            # Get center of the HR patch
-            LR_center_x = np.random.randint(LR_patch_W // 2, LR_W - LR_patch_W // 2)
-            LR_center_y = np.random.randint(LR_patch_H // 2, LR_H - LR_patch_H // 2)
+        # Get LR patch edges
+        LR_left = int( LR_center_x - LR_patch_W // 2 )
+        LR_right = int( LR_left + LR_patch_W )
+        LR_top = int( LR_center_y - LR_patch_H // 2 ) 
+        LR_bottom = int( LR_top + LR_patch_H )
 
-            # Get LR patch edges
-            LR_left = int( LR_center_x - LR_patch_W // 2 )
-            LR_right = int( LR_left + LR_patch_W )
-            LR_top = int( LR_center_y - LR_patch_H // 2 ) 
-            LR_bottom = int( LR_top + LR_patch_H )
+        # Get HR patch edges
+        HR_left = LR_left * self.scale_factor 
+        HR_right = LR_right * self.scale_factor 
+        HR_top = LR_top * self.scale_factor 
+        HR_bottom = LR_bottom * self.scale_factor 
 
-            # Get HR patch edges
-            HR_left = LR_left * self.scale_factor 
-            HR_right = LR_right * self.scale_factor 
-            HR_top = LR_top * self.scale_factor 
-            HR_bottom = LR_bottom * self.scale_factor 
+        # Extract LR and LR patches
+        LR_patch = LR_image[:, LR_top:LR_bottom, LR_left:LR_right]
+        HR_patch = HR_image[:, HR_top:HR_bottom, HR_left:HR_right]
 
-            # Extract LR and LR patches
-            LR_patch = LR_image[:, LR_top:LR_bottom, LR_left:LR_right]
-            HR_patch = HR_image[:, HR_top:HR_bottom, HR_left:HR_right]
-
-            # Add to patches tensor stack
-            HR_patches[i] = HR_patch
-            LR_patches[i] = LR_patch
-
-        return LR_patches, HR_patches
+        return LR_patch, HR_patch
 
 
     def __getitem__(self, idx):

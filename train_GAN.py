@@ -66,17 +66,17 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
     optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
     optim_D = torch.optim.Adam(gan_D.parameters(), lr=1e-4)
     
-    def do_epoch(LR_images, HR_images):
+    def do_epoch(LR_patch, HR_patch):
 
         # print(f"Before LR, HR on gpu: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
-        LR_images = LR_images.to(device)
-        HR_images = HR_images.to(device)
+        LR_patch = LR_patch.to(device)
+        HR_patch = HR_patch.to(device)
 
         #print(f"Before train D: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
         # Train Discriminator
-        real_output_D = gan_D(HR_images) # Discriminator output for real HR images
+        real_output_D = gan_D(HR_patch) # Discriminator output for real HR images
         
-        fake_output_G = gan_G(LR_images) # Generator output for LR images
+        fake_output_G = gan_G(LR_patch) # Generator output for LR images
         fake_output_D = gan_D(fake_output_G.detach()) # Discriminator output for fake HR images (i.e. generated from LR by generator)
         loss_D = get_loss_D(real_output_D, fake_output_D, bce_loss)
 
@@ -88,9 +88,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         #print(f"After train D: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
         # Train Generator
-        fake_output_G = gan_G(LR_images)
+        fake_output_G = gan_G(LR_patch)
         fake_output_D = gan_D(fake_output_G.detach())
-        loss_G = perceptualLoss(fake_output_G, HR_images, fake_output_D, bce_loss)
+        loss_G = perceptualLoss(fake_output_G, HR_patch, fake_output_D, bce_loss)
 
         # Update Generator
         gan_G.zero_grad()
@@ -101,7 +101,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
 
         del fake_output_D, fake_output_G
         del real_output_D
-        del LR_images, HR_images
+        del LR_patch, HR_patch
 
         #print(f"After del: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
@@ -116,8 +116,6 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         'avg_psnr' : [],
         'avg_ssim' : []
     }
-
-    sys.exit(0)
 
     for epoch in range(num_epoch):
 
@@ -134,36 +132,25 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         batches = len(train_loader)
         
         # Iterate over a batch
-        for _, (LR_patches, HR_patches, _) in enumerate(train_loader):
+        for _, (LR_patch, HR_patch, _) in enumerate(train_loader):
             
-            # Stack the patches along the batch dimension
-            LR_patches = LR_patches.view(-1, 3, LR_patches.shape[3], LR_patches.shape[4])
-            HR_patches = HR_patches.view(-1, 3, HR_patches.shape[3], HR_patches.shape[4])
+            LR_patch = LR_patch.unsqueeze(0)
+            HR_patch = HR_patch.unsqueeze(0)
 
-            loss_D, loss_G = do_epoch(LR_patches, HR_patches)
+            loss_D, loss_G = do_epoch(LR_patch, HR_patch)
 
             iteration_losses_D.append(loss_D.detach().item())
             iteration_losses_G.append(loss_G.detach().item())
 
             if epoch % 1 == 0:
-                # Iterate through the batch and get the psnr and ssim for current gan_G
-                patches = LR_patches.shape[0]
-                batch_psnr = []
-                batch_ssim = []
                 with torch.no_grad():
-                    LR_patches = LR_patches.to(device)
-                    out_G = gan_G(LR_patches).detach().cpu().numpy()
-                    for i in range(patches):
-                        out = out_G[i]
-                        HR_patch = HR_patches[i].numpy()
-                        batch_psnr.append(psnr(out, HR_patch))
-                        batch_ssim.append(ssim(out, HR_patch, channel_axis=0, data_range=1.0))
+                    LR_patch = LR_patch.to(device)
+                    out_G = gan_G(LR_patch).detach().cpu().numpy()
+                    HR_patch = HR_patch.numpy()
+                    epoch_psnr.append(psnr(out_G, HR_patch))
+                    epoch_ssim.append(ssim(out_G, HR_patch, channel_axis=0, data_range=1.0))
                         
                     del LR_patches
-
-                
-                epoch_psnr.append(sum(batch_psnr)/patches)
-                epoch_ssim.append(sum(batch_ssim)/patches)
 
         if epoch % 1  == 0:
             training_metrics['avg_psnr'].append(sum(epoch_psnr)/batches)
@@ -178,6 +165,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
     print(training_metrics['avg_psnr'])
     print(training_metrics['avg_ssim'])
 
+    # Get run time
     train_runtime = time.time() - train_start_time
     
     print("Done.")
@@ -188,8 +176,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, output_dir, num_epoch=5, verbose=F
         print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
         print(f"Epoch run time: {time.time() - start_time}")
 
-    save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir, kwargs=training_metrics)
-
+    # Save metrics log and model
+    save_log(num_images, train_runtime, "N/a", "N/a", "N/a", output_dir, **training_metrics )
     save_model(gan_G.module, output_dir)
 
 
@@ -385,7 +373,7 @@ if __name__ == '__main__':
     #print(f"After loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
     # Train hyperparameters
-    batch_size = 1
+    batch_size = 16
     num_epoch = 1 # 1e+5 in paper
 
     # Decide to train or do inference on batch of LR images
