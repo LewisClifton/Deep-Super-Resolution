@@ -30,7 +30,7 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
     mse = torch.nn.MSELoss().to(device)
 
     # Get the downsampler used to optimise
-    downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).type(dtype)
+    downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
 
     # Get fixed noise for the network input
     net_input = get_noise(4, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).type(dtype).detach()
