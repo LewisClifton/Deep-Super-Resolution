@@ -233,7 +233,7 @@ if __name__ == '__main__':
 
     # Get command line arguments for program behaviour
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
-    parser.add_argument('--mode', type=str, help='"train": train model, "eval": get evaluation metrics of trained model over test set', required=True)
+    parser.add_argument('--mode', type=str, help='"eval": get evaluation metrics over some images, "inf": do ISR to obtain HR images', required=True)
     parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
     parser.add_argument('--save_output', type=bool, help='Whether to save output when evaluating (--model=eval)', default=False)
