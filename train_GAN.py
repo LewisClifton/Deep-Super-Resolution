@@ -273,6 +273,7 @@ if __name__ == '__main__':
     # Get command line arguments for program behaviour
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
     parser.add_argument('--mode', type=str, help='"train": train model, "eval": get evaluation metrics of trained model over test set', required=True)
+    parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=-1)
     parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
@@ -297,6 +298,8 @@ if __name__ == '__main__':
 
     # Program mode i.e. 'train' for training, 'eval' for evaluation
     mode = args.mode
+
+    num_epoch = args.num_epoch
 
     model_path = ''
     if args.model_path:
@@ -370,9 +373,8 @@ if __name__ == '__main__':
         gan_D = nn.DataParallel(Discriminator(HR_patch_size)).to(device)
     #print(f"After loading models: {torch.cuda.memory_allocated() / (1024. ** 3)}GB")
 
-    # Train hyperparameters
+    # Number of minibatch image patches when training(16 in reference)
     batch_size = 16
-    num_epoch = 1 # 1e+5 in paper
 
     # Decide to train or do inference on batch of LR images
     if mode == 'train':
