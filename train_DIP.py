@@ -137,7 +137,7 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
         'ssim' : np.zeros(shape=(training_config['num_epochs']))
     }
 
-    lpips_model = lpips_.LPIPS(net='alex').to(torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
+    lpips_model = lpips_.LPIPS(net='alex').to(device)
 
     # Perform SISR using DIP for num_images many images
     for idx in range(num_images):   
