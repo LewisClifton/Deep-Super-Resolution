@@ -19,13 +19,17 @@ from utils.common import *
 torch.backends.cudnn.enabled = True
 
 
-def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, psnr, ssim, device):
+def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device):
     # Train GAN to perform SISR
 
     # Get loss functions
     bce_loss = nn.BCELoss()
     vgg_loss = Vgg19Loss()
     perceptualLoss = PerceptualLoss(vgg_loss)
+
+    # Get metrics
+    psnr = PeakSignalNoiseRatio()
+    ssim = StructuralSimilarityIndexMeasure()
     
     # Get optimisers for both models
     optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
