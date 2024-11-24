@@ -26,8 +26,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     perceptualLoss = PerceptualLoss().to(device)
 
     # Get metrics
-    psnr = PSNR()
-    ssim = SSIM(data_range=1.0)
+    psnr = PSNR().to(device)
+    ssim = SSIM(data_range=1.0).to(device)
     lpips = LPIPS(net_type='alex').to(device)
     
     # Get optimisers for both models
@@ -99,11 +99,16 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
 
             if epoch % train_log_freq == 0:
                 with torch.no_grad():
+
+                    LR_patches.to(device)
+                    HR_patches.to(device)
                     
                     out_G = gan_G(LR_patches)
                     epoch_psnrs.append(psnr(out_G, HR_patches).item())
                     epoch_ssims.append(ssim(out_G, HR_patches).item())
                     epoch_lpipss.append(lpips(out_G, HR_patches).item())
+
+                    del LR_patch_size, HR_patch_size, out_G
                     
 
         if epoch % train_log_freq  == 0:
