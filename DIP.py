@@ -18,7 +18,6 @@ from utils.common import *
 
 # Torch setup
 torch.backends.cudnn.enabled = True
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, psnr, ssim, lpips, device):
@@ -160,9 +159,9 @@ def main(rank,
     }
 
     # Get metrics models
-    psnr = PSNR().to(device)
+    psnr = PSNR().to(rank)
     ssim = SSIM(data_range=1.)
-    lpips = LPIPS(net_type='alex').to(device)
+    lpips = LPIPS(net_type='alex').to(rank)
 
     start_time = time.time()
 
@@ -172,15 +171,15 @@ def main(rank,
         print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
         # Define DIP network
-        net = get_DIP_network(input_depth=4, pad='reflection').to(device)
+        net = get_DIP_network(input_depth=4, pad='reflection').to(rank)
         net = DDP(net, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
         resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=rank)
 
         # Accumulate running lpips
-        resolved_image = resolved_image.to(device)
-        HR_image = HR_image.to(device)
+        resolved_image = resolved_image.to(rank)
+        HR_image = HR_image.to(rank)
         running_lpips += lpips(resolved_image, HR_image).cpu()
 
         # Accumulate running psnr, ssim
