@@ -21,11 +21,11 @@ torch.backends.cudnn.enabled = True
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, psnr, ssim, device):
+def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, psnr, ssim, lpips, device):
     # Perform DIP ISR on a single image
 
     # Define loss
-    mse = torch.nn.MSELoss().to(device)
+    mse = torch.nn.MSELoss()
 
     # Get the downsampler used to optimise
     downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
@@ -44,6 +44,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     iter = 0
     psnrs = []
     ssims = []
+    lpipss = []
     
     # Define closure for training
     def closure():
@@ -69,19 +70,24 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
 
         # Log evaluation metrics
         if iter % train_log_freq == 0:
+            epoch_lpips = lpips(out_HR, HR_image).cpu()
+
             out_HR_np = torch_to_np(out_HR)
             epoch_psnr = psnr(out_HR_np, HR_image_np)
-            epoch_ssim = ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)
+            epoch_ssim = ssim(out_HR_np, HR_image_np)
+
             psnrs.append(epoch_psnr)
             ssims.append(epoch_ssim)
+            lpipss.append(epoch_lpips)
 
             out_HR_np = torch_to_np(out_HR)
             print(f"Iteration {iter+1}/{training_config['num_iter']}:")
             print(f"PSNR: {epoch_psnr}")
             print(f"SSIM: {epoch_ssim}")
+            print(f'LPIPS: {epoch_lpips}')
             print(f"Iteration runtime: {time.time() - start_time} seconds")
             
-            del out_HR_np
+            del out_HR_np, epoch_lpips
 
         iter += 1
         out_HR.detach().cpu()
@@ -107,13 +113,14 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
 
     del net_input
     del LR_image, HR_image, HR_image_np
-    del net, mse
+    del net, mse, psnr, ssim, lpips
     del downsampler
     torch.cuda.empty_cache()
 
     training_metrics = {
-        'psnr' : psnrs,
-        'ssim' : ssims,
+        'psnrs' : psnrs,
+        'ssims' : ssims,
+        'lpipss' : lpipss
     }
     
     return resolved_image, training_metrics
@@ -146,14 +153,15 @@ def main(rank,
 
     # Initialise performance over training metrics
     metrics = {
-        'avg_psnrs' : np.zeros(shape=(training_config['num_iter'])),
-        'avg_ssims' : np.zeros(shape=(training_config['num_iter']))
+        'psnrs' : np.zeros(shape=(training_config['num_iter'])),
+        'ssims' : np.zeros(shape=(training_config['num_iter'])),
+        'lpipss' : np.zeros(shape=(training_config['num_iter']))
     }
 
     # Get metrics models
+    psnr = PSNR().to(device)
+    ssim = SSIM(data_range=1.)
     lpips = LPIPS(net='alex').to(device)
-    psnr = PSNR()
-    ssim = SSIM(data_range=1)
 
     start_time = time.time()
 
@@ -167,22 +175,23 @@ def main(rank,
         model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
-        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, device=rank)
+        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips, device=rank)
 
-        # Accumulate metrics
+        # Accumulate running lpips
         resolved_image = resolved_image.to(device)
         HR_image = HR_image.to(device)
-        running_lpips += lpips(resolved_image, HR_image)
+        running_lpips += lpips(resolved_image, HR_image).cpu()
+
+        # Accumulate running psnr, ssim
         resolved_image = np.clip(resolved_image.cpu().numpy()[0], 0, 1)
         HR_image = np.clip(HR_image.cpu().numpy(), 0, 1)
-        
-        # Accumulate the final metrics
         running_psnr += psnr(resolved_image, HR_image)
-        running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
-
+        running_ssim += ssim(resolved_image, HR_image)
+        
         # Accumulate the metrics over iterations
-        metrics['avg_psnrs'] += np.array(image_train_metrics['psnr'])
-        metrics['avg_ssims'] += np.array(image_train_metrics['ssim'])
+        metrics['psnrs'] += np.array(image_train_metrics['psnrs'])
+        metrics['ssims'] += np.array(image_train_metrics['ssims'])
+        metrics['lpipss'] += np.array(image_train_metrics['lpipss'])
 
         print("Done.")
 
@@ -221,8 +230,10 @@ def main(rank,
         # Calculate mean across GPUs for each epoch
         avg_psnrs = [gpu_metrics['avg_psnrs'] for gpu_metrics in metrics_gpus]
         avg_ssims = [gpu_metrics['avg_ssims'] for gpu_metrics in metrics_gpus]
+        avg_lpipss = [gpu_metrics['avg_lpipss'] for gpu_metrics in metrics_gpus]
         avg_psnrs = np.mean(np.vstack(avg_psnrs), axis=0)
         avg_ssims = np.mean(np.vstack(avg_ssims), axis=0)
+        avg_lpipss = np.mean(np.vstack(avg_lpipss), axis=0)
 
         # Calculate average final metrics across GPUs
         avg_final_psnr = np.mean([gpu_metrics['final_psnr'] for gpu_metrics in metrics_gpus])
@@ -235,7 +246,7 @@ def main(rank,
             "Train runtime" : runtime,
             "Average PSNR per epoch" : avg_psnrs.tolist(),
             "Average SSIM per epoch" : avg_ssims.tolist(),
-            "Average LPIPS per epoch" : 'Not tracked during training due to VGG-19 memory overhead',
+            "Average LPIPS per epoch" : avg_lpipss.tolist(),
             "Average final PSNR" : avg_final_psnr,
             'Average final SSIM' : avg_final_ssim,
             "Average final LPIPS" : avg_final_lpip,

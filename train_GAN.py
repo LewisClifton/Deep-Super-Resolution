@@ -6,7 +6,8 @@ from datetime import datetime
 import time
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
-from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator
@@ -24,12 +25,12 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
 
     # Get loss functions
     bce_loss = nn.BCELoss()
-    vgg_loss = Vgg19Loss()
-    perceptualLoss = PerceptualLoss(vgg_loss)
+    perceptualLoss = PerceptualLoss().to(device)
 
     # Get metrics
-    psnr = PeakSignalNoiseRatio()
-    ssim = StructuralSimilarityIndexMeasure()
+    psnr = PeakSignalNoiseRatio().to(device)
+    ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
+    lpips = LPIPS(net='alex').to(device)
     
     # Get optimisers for both models
     optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
@@ -55,7 +56,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         # Train Generator
         fake_output_G = gan_G(LR_patches)
         fake_output_D = gan_D(fake_output_G.detach())
-        loss_G = perceptualLoss(fake_output_G, HR_patches, fake_output_D, bce_loss)
+        loss_G = perceptualLoss(fake_output_G, HR_patches, fake_output_D, bce_loss, device)
 
         # Update Generator
         gan_G.zero_grad()
@@ -72,7 +73,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     print(f'Starting GAN training..')
 
     avg_psnrs = []
-    avg_ssims =[]
+    avg_ssims = []
+    avg_lpipps = []
 
     for epoch in range(num_epoch):
 
@@ -83,8 +85,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         iteration_losses_D = []
         iteration_losses_G = []
 
-        epoch_psnr = []
-        epoch_ssim = []
+        epoch_psnrs = []
+        epoch_ssims = []
+        epoch_lpipss = []
 
         batches = len(train_loader)
         
@@ -98,24 +101,31 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
 
             if epoch % train_log_freq == 0:
                 with torch.no_grad():
-                    batch_psnr = []
-                    batch_ssim = []
+                    batch_psnrs = []
+                    batch_ssims = []
+                    batch_lpipss = []
                     batch_size = LR_patches[0]
                     
                     for i in range(batch_size):
+                        
                         LR_patch = LR_patches[i].unsqueeze(0).to(device)
                         out_G = gan_G(LR_patch).detach().cpu().numpy().squeeze(0)
-                        HR_patch = HR_patches[i].numpy()
-                        batch_psnr.append(psnr(out_G, HR_patch))
-                        batch_ssim.append(ssim(out_G, HR_patch, channel_axis=0, data_range=1.0))
+                        HR_patch = HR_patches[i].to(device)
+                        
+                        HR_patch = HR_patches.numpy()
+                        batch_psnrs.append(psnr(out_G, HR_patch))
+                        batch_ssims.append(ssim(out_G, HR_patch))
+                        batch_lpipss.append(lpips(out_G, HR_patch))
                         
                         del LR_patch, out_G
-                    epoch_psnr.append(sum(epoch_psnr)/batch_size)
-                    epoch_ssim.append(sum(epoch_ssim)/batch_size)
+                    epoch_psnrs.append(sum(batch_psnrs)/batch_size)
+                    epoch_ssims.append(sum(batch_ssims)/batch_size)
+                    epoch_lpipss.append(sum(batch_lpipss)/batch_size)
 
         if epoch % train_log_freq  == 0:
-            avg_psnrs.append(sum(epoch_psnr)/batches)
-            avg_ssims.append(sum(epoch_ssim)/batches)
+            avg_psnrs.append(sum(epoch_psnrs)/batches)
+            avg_ssims.append(sum(epoch_ssims)/batches)
+            avg_lpipps.append(sum(epoch_lpipss)/batches)
 
             print(f"Epoch {epoch+1}/{num_epoch}:")
             print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
@@ -125,8 +135,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     print("Done.")
     
     train_metrics = {
-        'avg_psnr' : avg_psnrs,
-        'avg_ssim' : avg_ssims,
+        'avg_psnrs' : avg_psnrs,
+        'avg_ssims' : avg_ssims,
+        'avg_lpipss' :avg_lpipps,
         'd_loss' : iteration_losses_D[-1],
         'g_loss' : iteration_losses_G[-1]
     }
@@ -195,8 +206,10 @@ def main(rank,
         # Calculate mean across GPUs for each epoch
         avg_psnrs = [gpu_metrics['avg_psnrs'] for gpu_metrics in train_metrics_gpus]
         avg_ssims = [gpu_metrics['avg_ssims'] for gpu_metrics in train_metrics_gpus]
+        avg_lpipss = [gpu_metrics['avg_lpipss'] for gpu_metrics in train_metrics_gpus]
         avg_psnrs = np.mean(np.vstack(avg_psnrs), axis=0)
         avg_ssims = np.mean(np.vstack(avg_ssims), axis=0)
+        avg_lpipss = np.mean(np.vstack(avg_lpipss), axis=0)
 
         # Calculate average final discriminator loss and generator loss across gpus
         d_loss = np.mean([gpu_metrics['d_loss'] for gpu_metrics in train_metrics_gpus])
@@ -208,7 +221,7 @@ def main(rank,
             "Train runtime" : runtime,
             "Average PSNR" : avg_psnrs.tolist(),
             "Average SSIM" : avg_ssims.tolist(),
-            "Average LPIPS" : 'Not tracked during training due to VGG-19 memory overhead',
+            "Average LPIPS" : avg_lpipss.tolist(),
             'Final Generator loss' : d_loss,
             'Final Discriminator loss' : g_loss
         }

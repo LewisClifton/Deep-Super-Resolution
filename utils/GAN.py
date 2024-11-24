@@ -103,23 +103,20 @@ def get_loss_D(real_output, fake_output, bce_loss):
     return loss_D
 
 # Get generator training loss function
-class PerceptualLoss():
-    def __init__(self, content_loss_fn, device):
-        self.content_loss_fn = content_loss_fn
-        self.device = device
+class PerceptualLoss(nn.Module):
+    def __init__(self):
+        self.vgg_loss = Vgg19Loss()
 
-    def __call__(self, fake_output_G, HR_images, fake_output_D, bce_loss):
-        # Content less: MSE loss or vgg loss
-        self.content_loss_fn.to(self.device)
-        content_loss = self.content_loss_fn(fake_output_G, HR_images)
-        self.content_loss_fn.cpu() # keep on cpu until needed for loss calculation
+    def forward(self, fake_output_G, HR_images, fake_output_D, bce_loss):
 
-        # Adversarial loss
-        bce_loss.to(self.device)
-        adversarial_loss_ = get_adversarial_loss(fake_output_D, bce_loss)
-        bce_loss.cpu()
+        with torch.no_grad():
+            # Content less: MSE loss or vgg loss
+            content_loss = self.vgg_loss(fake_output_G, HR_images)
 
-        # Perceptual loss
-        perceptual_loss = content_loss + adversarial_loss_
+            # Adversarial loss
+            adversarial_loss_ = get_adversarial_loss(fake_output_D, bce_loss)
 
-        return perceptual_loss
+            # Perceptual loss
+            perceptual_loss = content_loss + adversarial_loss_
+
+            return perceptual_loss
