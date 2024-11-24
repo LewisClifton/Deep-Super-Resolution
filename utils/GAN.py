@@ -79,15 +79,14 @@ class Vgg19Loss(nn.Module):
     
     def forward(self, image1, image2):
         
-        with torch.no_grad():
-            # Get the vgg feature maps of the images
-            feature_map1 = self.net(image1)
-            feature_map2 = self.net(image2)
+        # Get the vgg feature maps of the images
+        feature_map1 = self.net(image1)
+        feature_map2 = self.net(image2)
 
-            # VGG loss is simply mse of the feature maps from the VGG network
-            vgg_loss = self.mse(feature_map1, feature_map2)
+        # VGG loss is simply mse of the feature maps from the VGG network
+        vgg_loss = self.mse(feature_map1, feature_map2)
 
-            return vgg_loss
+        return vgg_loss
         
 
 # Generator loss
@@ -110,14 +109,13 @@ class PerceptualLoss(nn.Module):
 
     def forward(self, fake_output_G, HR_images, fake_output_D, bce_loss):
 
-        with torch.no_grad():
-            # Content less: MSE loss or vgg loss
-            content_loss = self.vgg_loss(fake_output_G, HR_images)
+        # Content less: MSE loss or vgg loss
+        content_loss = self.vgg_loss(fake_output_G, HR_images)
 
-            # Adversarial loss
-            adversarial_loss_ = get_adversarial_loss(fake_output_D, bce_loss)
+        # Adversarial loss
+        adversarial_loss_ = get_adversarial_loss(fake_output_D, bce_loss)
 
-            # Perceptual loss
-            perceptual_loss = content_loss + adversarial_loss_
+        # Perceptual loss
+        perceptual_loss = content_loss + adversarial_loss_
 
-            return perceptual_loss
+        return perceptual_loss
