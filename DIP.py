@@ -29,13 +29,10 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     # Get the downsampler used to optimise
     downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
 
-    print(HR_image.shape)
     # Get fixed noise for the network input
     net_input = get_noise(32, 'noise', (HR_image.shape[2], HR_image.shape[3])).detach()
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
-
-    print(net_input.shape)
 
     # Put everything on the GPU
     LR_image = LR_image.to(device).detach()
@@ -171,8 +168,6 @@ def main(rank,
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(data_loader):   
 
-        print(LR_image.shape)
-
         if rank == 0:
             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
@@ -207,7 +202,7 @@ def main(rank,
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, image_name, output_dir)
 
-        del LR_image, HR_image, resolved_image
+        del LR_image, HR_image, resolved_image, net
 
     if rank == 0:
         print(f"Done for all {num_images} images.")
@@ -268,7 +263,9 @@ def main(rank,
         # Save metrics log and model
         save_log(output_dir, **final_metrics)
 
-    dist.destroy_process_group()
+    dist.barrier()
+    if dist.is_initialized():
+        dist.destroy_process_group()
 
     
 if __name__ == '__main__':
