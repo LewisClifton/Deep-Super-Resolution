@@ -73,8 +73,8 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, output_dir, batch_size, device):
     
     return eval_metrics
 
-def main(world_size,
-         rank, 
+def main(rank,
+         world_size, 
          LR_dir, 
          HR_dir, 
          output_dir, 

@@ -119,8 +119,8 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     return resolved_image, training_metrics
 
 
-def main(world_size,
-         rank, 
+def main(rank,
+         world_size, 
          LR_dir, 
          HR_dir, 
          output_dir, 

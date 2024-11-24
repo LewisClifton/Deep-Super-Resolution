@@ -130,8 +130,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     return gan_G, train_metrics
 
 
-def main(world_size,
-         rank, 
+def main(rank,
+         world_size, 
          LR_dir, 
          HR_dir, 
          output_dir, 
