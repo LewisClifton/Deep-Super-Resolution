@@ -50,7 +50,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
         nonlocal iter, net_input
 
          # Include regulariser noise
-        if training_metrics['reg_noise_std'] > 0:
+        if training_config['reg_noise_std'] > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
 
         # Get iteration start time
