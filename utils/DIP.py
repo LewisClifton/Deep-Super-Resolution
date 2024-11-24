@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from .common import *
 
+
 # Optimise using the closure as the training loop
 def optimize(optimizer_type, parameters, closure, learning_rate, num_iter):
     """Runs optimization loop.

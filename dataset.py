@@ -21,7 +21,7 @@ def get_image_pair(dataset_config, idx):
             LR_image = add_gaussian_noise(LR_image, std=dataset_config.noise_type['std'])
 
     # Get the expected dimensions of the HR image given the LR image shape and the scale factor
-    width_LR, height_LR = LR_image.size  # Pillow uses (width, height)
+    width_LR, height_LR = LR_image.size
     width_HR = dataset_config.scale_factor * width_LR
     height_HR = dataset_config.scale_factor * height_LR
 
@@ -46,25 +46,20 @@ def get_image_pair(dataset_config, idx):
     else:
         HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
 
+    # Unfortunately the images in the dataset are too big to use in the forward pass so apply downsampling by default
+    LR_image = downsample(LR_image, 2)
+    HR_image = downsample(HR_image, 2)
+
     # Convert to tensor
-    HR_image = transforms.ToTensor()(HR_image)
     LR_image = transforms.ToTensor()(LR_image)
+    HR_image = transforms.ToTensor()(HR_image)
 
     # Get the filename of the input
     filename, _ = os.path.splitext(dataset_config.LR_images[idx])
 
     return LR_image, HR_image, filename
 
-def scale_images(LR_image, HR_image):
-    # Scale LR images to [0,1] per the reference paper
-    LR_image /= 255.0
-    
-    # Scale HR images to [-1,1] per the reference paper
-    HR_image /= 255.0
-    HR_image *= 2   
-    HR_image -= 1
 
-    return LR_image, HR_image
 
 
 # Would've been neater to use inheritance from a DIV2KDataset class but these classes are only short anyway
@@ -91,8 +86,6 @@ class DIPDIV2KDataset(Dataset):
     def __getitem__(self, idx):
 
         LR_image, HR_image, filename = get_image_pair(self, idx)
-
-        LR_image, HR_image = scale_images(LR_image, HR_image)
 
         return LR_image, HR_image, filename
     
@@ -151,12 +144,23 @@ class GANDIV2KDataset(Dataset):
 
         return LR_patch, HR_patch
 
+    @staticmethod
+    def scale_images(LR_image, HR_image):
+        # Scale LR images to [0,1] per the reference paper
+        LR_image /= 255.0
+        
+        # Scale HR images to [-1,1] per the reference paper
+        HR_image /= 255.0
+        HR_image *= 2   
+        HR_image -= 1
+
+        return LR_image, HR_image
 
     def __getitem__(self, idx):
 
         LR_image, HR_image, filename = get_image_pair(self, idx)
 
-        LR_image, HR_image = scale_images(LR_image, HR_image)
+        LR_image, HR_image = GANDIV2KDataset.scale_images(LR_image, HR_image)
 
         # If training use image patches:
         if self.train:
