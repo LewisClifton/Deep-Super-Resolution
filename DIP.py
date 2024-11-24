@@ -101,7 +101,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     optimize('adam', params, closure, training_config['learning_rate'], training_config['num_iter'])
 
     # Get the final resolved image
-    resolved_image = net(net_input).detach().cpu()
+    resolved_image = net(net_input).detach()
     
     # Delete everything to ensure GPU memory is freed up
     net_input.detach().cpu()
@@ -185,15 +185,12 @@ def main(rank,
         resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=rank)
 
         # Accumulate running lpips
-        resolved_image = resolved_image.to(rank)
         HR_image = HR_image.to(rank)
+        
+        # Accumulate running psnr, ssim, lpips
+        running_psnr += psnr(resolved_image, HR_image).cpu()
+        running_ssim += ssim(resolved_image, HR_image).cpu()
         running_lpips += lpips(resolved_image, HR_image).cpu()
-
-        # Accumulate running psnr, ssim
-        resolved_image = np.clip(resolved_image.cpu().numpy()[0], 0, 1)
-        HR_image = np.clip(HR_image.cpu().numpy(), 0, 1)
-        running_psnr += psnr(resolved_image, HR_image)
-        running_ssim += ssim(resolved_image, HR_image)
         
         # Accumulate the metrics over iterations
         metrics['psnrs'] += np.array(image_train_metrics['psnrs'])
