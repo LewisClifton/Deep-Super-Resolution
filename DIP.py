@@ -276,8 +276,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get dataset
-    LR_dir = os.path.join(data_dir, 'data/DIV2K_train_LR_x8/')
-    HR_dir = os.path.join(data_dir, 'data/DIV2K_train_HR/')
+    LR_dir = os.path.join(data_dir, 'DIV2K_train_LR_x8/')
+    HR_dir = os.path.join(data_dir, 'DIV2K_train_HR/')
     
     # Set the output and trained model directory
     output_dir = os.path.join(cwd, rf'out\DIP\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
