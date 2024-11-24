@@ -4,8 +4,6 @@ import argparse
 import sys
 from datetime import datetime
 import time
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.multiprocessing as mp
 from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 
@@ -44,8 +42,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         # Train Discriminator
         real_output_D = gan_D(HR_patches) # Discriminator output for real HR images
         
-        with torch.no_grad():
-            fake_output_G = gan_G(LR_patches) # Generator output for LR images
+        fake_output_G = gan_G(LR_patches).detach() # Generator output for LR images
         fake_output_D = gan_D(fake_output_G) # Discriminator output for fake HR images (i.e. generated from LR by generator)
         loss_D = get_loss_D(real_output_D, fake_output_D, bce_loss)
 
@@ -75,7 +72,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
 
     avg_psnrs = []
     avg_ssims = []
-    avg_lpipps = []
+    avg_lpipss = []
 
     for epoch in range(num_epoch):
 
@@ -126,7 +123,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         if epoch % train_log_freq  == 0:
             avg_psnrs.append(sum(epoch_psnrs)/batches)
             avg_ssims.append(sum(epoch_ssims)/batches)
-            avg_lpipps.append(sum(epoch_lpipss)/batches)
+            avg_lpipss.append(sum(epoch_lpipss)/batches)
 
             print(f"Epoch {epoch+1}/{num_epoch}:")
             print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
@@ -136,19 +133,17 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     print("Done.")
     
     train_metrics = {
-        'avg_psnrs' : avg_psnrs,
-        'avg_ssims' : avg_ssims,
-        'avg_lpipss' :avg_lpipps,
-        'd_loss' : iteration_losses_D[-1],
-        'g_loss' : iteration_losses_G[-1]
+        "Average PSNR during training" : avg_psnrs,
+        "Average SSIM during training" : avg_ssims,
+        "Average LPIPS during training" : avg_lpipss,
+        'Final Generator loss' : iteration_losses_D[-1],
+        'Final Discriminator loss' : iteration_losses_G[-1]
     }
 
     return gan_G, train_metrics
 
 
-def main(rank,
-         world_size, 
-         LR_dir, 
+def main(LR_dir, 
          HR_dir, 
          output_dir, 
          factor, 
@@ -156,18 +151,14 @@ def main(rank,
          num_epoch,
          LR_patch_size,
          HR_patch_size,
-         train_log_freq):
-    
-    # setup the process groups
-    setup_gpu(rank, world_size)
+         train_log_freq,
+         device):
 
     # Get generator and wrap with DDP
-    gan_G = Generator(factor=factor).to(rank)
-    gan_G = DDP(gan_G, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+    gan_G = Generator(factor=factor).to(device)
 
     # Get discriminator and wrap with DDP
-    gan_D = Discriminator(HR_patch_size).to(rank)
-    gan_D = DDP(gan_D, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+    gan_D = Discriminator(HR_patch_size).to(device)
     
     # Set Generator and Discriminator to train mode
     gan_G.train(); gan_D.train()
@@ -179,65 +170,31 @@ def main(rank,
     dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=LR_patch_size, HR_dir=HR_dir, train=True)
 
     # Create a dataloader           
-    data_loader = get_data_loader(dataset, rank, world_size, batch_size)
+    data_loader =  DataLoader(dataset, batch_size=batch_size, pin_memory=False, num_workers=0, drop_last=False, shuffle=False)
 
     start_time = time.time()
 
     # Train
-    trained_model, train_metrics = GAN_ISR_train(gan_G, gan_D, data_loader, num_epoch, train_log_freq, device=rank)
+    trained_model, train_metrics = GAN_ISR_train(gan_G, gan_D, data_loader, num_epoch, train_log_freq, device=device)
 
     # Get run time
-    train_metrics['runtime'] = time.time() - start_time
+    runtime = time.time() - start_time
 
-    # Wait for all gpus to get to this point
-    dist.barrier()
+    print('Done training')
 
-    # Send all the gpu node metrics back to the main gpu
-    torch.cuda.set_device(rank)
-    train_metrics_gpus = [None for _ in range(world_size)]
-    dist.all_gather_object(train_metrics_gpus, train_metrics)
+    # Final train metric for the log
+    train_metrics["Number of images used for training"] = num_images
+    train_metrics["Train runtime"] = runtime
 
-    if rank == 0:
-        print('Done training')
+    # Output directory
+    date = datetime.now()
+    out_dir = os.path.join(out_dir, f'GAN/trained/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
-        # Get runtime
-        runtime = np.max([gpu_metrics['runtime'] for gpu_metrics in train_metrics_gpus])
-        runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
-
-        # Calculate mean across GPUs for each epoch
-        avg_psnrs = [gpu_metrics['avg_psnrs'] for gpu_metrics in train_metrics_gpus]
-        avg_ssims = [gpu_metrics['avg_ssims'] for gpu_metrics in train_metrics_gpus]
-        avg_lpipss = [gpu_metrics['avg_lpipss'] for gpu_metrics in train_metrics_gpus]
-        avg_psnrs = np.mean(np.vstack(avg_psnrs), axis=0)
-        avg_ssims = np.mean(np.vstack(avg_ssims), axis=0)
-        avg_lpipss = np.mean(np.vstack(avg_lpipss), axis=0)
-
-        # Calculate average final discriminator loss and generator loss across gpus
-        d_loss = np.mean([gpu_metrics['d_loss'] for gpu_metrics in train_metrics_gpus])
-        g_loss = np.mean([gpu_metrics['g_loss'] for gpu_metrics in train_metrics_gpus])
-
-        # Final train metric for the log
-        final_train_metrics = {
-            "Number of images used for training" : num_images,
-            "Train runtime" : runtime,
-            "Average PSNR" : avg_psnrs.tolist(),
-            "Average SSIM" : avg_ssims.tolist(),
-            "Average LPIPS" : avg_lpipss.tolist(),
-            'Final Generator loss' : d_loss,
-            'Final Discriminator loss' : g_loss
-        }
-
-        # Output directory
-        date = datetime.now()
-        out_dir = os.path.join(out_dir, f'GAN/trained/{date.strftime("%Y_%m_%d_%p%I_%M")}')
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-        # Save metrics log and model
-        save_log(output_dir, **final_train_metrics)
-        save_model(trained_model.module, output_dir)
-
-    dist.destroy_process_group()
+    # Save metrics log and model
+    save_log(output_dir, **train_metrics)
+    save_model(trained_model.module, output_dir)
 
 
 
@@ -292,17 +249,14 @@ if __name__ == '__main__':
     LR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
 
     # Initialise gpus
-    world_size = args.num_gpus 
-    mp.spawn(
-        main,
-        args=(world_size,
-              LR_dir,
-              HR_dir,
-              output_dir,
-              factor,
-              num_images,
-              num_epoch,
-              LR_patch_size,
-              HR_patch_size,
-              train_log_freq),
-        nprocs=world_size)
+    device = 0
+    main(LR_dir,
+        HR_dir,
+        output_dir,
+        factor,
+        num_images,
+        num_epoch,
+        LR_patch_size,
+        HR_patch_size,
+        train_log_freq,
+        device)
