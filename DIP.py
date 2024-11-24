@@ -4,10 +4,10 @@ from datetime import datetime
 import time
 import argparse
 import sys
-import lpips as lpips_
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
-from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
@@ -151,9 +151,9 @@ def main(rank,
     }
 
     # Get metrics models
-    lpips_model = lpips_.LPIPS(net='alex').to(device)
-    psnr = PeakSignalNoiseRatio()
-    ssim = StructuralSimilarityIndexMeasure()
+    lpips = LPIPS(net='alex').to(device)
+    psnr = PSNR()
+    ssim = SSIM(data_range=1)
 
     start_time = time.time()
 
@@ -172,7 +172,7 @@ def main(rank,
         # Accumulate metrics
         resolved_image = resolved_image.to(device)
         HR_image = HR_image.to(device)
-        running_lpips += lpips(resolved_image, HR_image, lpips_model)
+        running_lpips += lpips(resolved_image, HR_image)
         resolved_image = np.clip(resolved_image.cpu().numpy()[0], 0, 1)
         HR_image = np.clip(HR_image.cpu().numpy(), 0, 1)
         
