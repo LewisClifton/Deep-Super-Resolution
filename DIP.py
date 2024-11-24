@@ -29,8 +29,9 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     # Get the downsampler used to optimise
     downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
 
+    print(HR_image.shape)
     # Get fixed noise for the network input
-    net_input = get_noise(32, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).detach()
+    net_input = get_noise(32, 'noise', (HR_image.shape[1], HR_image.shape[2])).detach()
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
 

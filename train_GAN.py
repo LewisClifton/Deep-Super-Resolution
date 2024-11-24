@@ -100,8 +100,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
             if epoch % train_log_freq == 0:
                 with torch.no_grad():
 
-                    LR_patches.to(device)
-                    HR_patches.to(device)
+                    LR_patches = LR_patches.to(device)
+                    HR_patches = HR_patches.to(device)
                     
                     out_G = gan_G(LR_patches)
                     epoch_psnrs.append(psnr(out_G, HR_patches).item())
