@@ -5,6 +5,8 @@ import time
 import argparse
 import sys
 import lpips as lpips_
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.multiprocessing as mp
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
@@ -19,12 +21,8 @@ torch.backends.cudnn.enabled = True
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-
-def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, verbose=False, reg_noise_std=0.05):
+def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, device):
     # Perform DIP ISR on a single image
-
-    # Define DIP network
-    net = get_DIP_network(input_depth=4, pad='reflection').to(device)
 
     # Define loss
     mse = torch.nn.MSELoss().to(device)
@@ -38,26 +36,21 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
     noise = net_input.detach().clone()
 
     # Put everything on the GPU
-    #net_input = np_to_torch(net_input).squeeze(0).to(device)
-    LR_image = LR_image.to(device).unsqueeze(0).detach()
-    HR_image = HR_image.to(device).unsqueeze(0).detach()
+    LR_image = LR_image.to(device).detach()
+    HR_image = HR_image.to(device).detach()
     HR_image_np = HR_image.detach().cpu().numpy()[0] # For evaluation metrics
 
     # Optimise the network over the input
-    i = 0
-    params = get_params('net', net, net_input)
-
-    training_metrics = {
-        'psnr' : [],
-        'ssim' : []
-    }
-
+    iter = 0
+    psnrs = []
+    ssims = []
+    
     # Define closure for training
     def closure():
-        nonlocal i, net_input
+        nonlocal iter, net_input
 
          # Include regulariser noise
-        if reg_noise_std > 0:
+        if training_metrics['reg_noise_std'] > 0:
             net_input = net_input_saved + (noise.normal_() * reg_noise_std)
 
         # Get iteration start time
@@ -74,24 +67,23 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
         # Backpropagate loss
         total_loss.backward()
 
-        # Print evaluation metrics if required
-        if i % 1 == 0  and use_GT:
+        # Log evaluation metrics
+        if iter % train_log_freq == 0:
             out_HR_np = torch_to_np(out_HR)
             epoch_psnr = psnr(out_HR_np, HR_image_np)
             epoch_ssim = ssim(out_HR_np, HR_image_np, channel_axis=0, data_range=1.0)
-            training_metrics['psnr'].append(epoch_psnr)
-            training_metrics['ssim'].append(epoch_ssim)
+            psnrs.append(epoch_psnr)
+            ssims.append(epoch_ssim)
 
-            if verbose:
-                out_HR_np = torch_to_np(out_HR)
-                print(f"Epoch {i+1}/{training_config['num_epochs']}:")
-                print(f"PSNR: {epoch_psnr}")
-                print(f"SSIM: {epoch_ssim}")
-                print(f"Iteration runtime: {time.time() - start_time} seconds")
+            out_HR_np = torch_to_np(out_HR)
+            print(f"Iteration {iter+1}/{training_config['num_iter']}:")
+            print(f"PSNR: {epoch_psnr}")
+            print(f"SSIM: {epoch_ssim}")
+            print(f"Iteration runtime: {time.time() - start_time} seconds")
             
             del out_HR_np
 
-        i += 1
+        iter += 1
         out_HR.detach().cpu()
         out_LR.detach().cpu()
         del out_HR
@@ -100,7 +92,10 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
         return total_loss
 
     # Iteratively optimise over the noise 
-    optimize('adam', params, closure, training_config['learning_rate'], training_config['num_epochs'])
+    params = get_params('net', net, net_input)
+    optimize('adam', params, closure, training_config['learning_rate'], training_config['num_iter'])
+
+    # Get the final resolved image
     resolved_image = net(net_input).detach().cpu()
     
     # Delete everything to ensure GPU memory is freed up
@@ -115,40 +110,62 @@ def DIP_ISR(LR_image, HR_image, scale_factor, training_config, use_GT=False, ver
     del net, mse
     del downsampler
     torch.cuda.empty_cache()
+
+    training_metrics = {
+        'psnr' : psnrs,
+        'ssim' : ssims,
+    }
     
-    if use_GT:
-        return resolved_image, training_metrics
-    else:
-        return resolved_image, None
+    return resolved_image, training_metrics
 
 
-def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolved_images=False, num_images=5, verbose=False):
-    # Use to evaluate DIP for SISR
-    # Run DIP across all images while keeping track of performance metrics
+def main(world_size,
+         rank, 
+         LR_dir, 
+         HR_dir, 
+         output_dir, 
+         factor, 
+         num_images, 
+         save_output,
+         train_log_freq):
+    
+    # setup the process groups
+    setup_gpu(rank, world_size)
 
-    # Initialise performance metrics
+    # Load the dataset
+    dataset = DIPDIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images)
+    data_loader = get_data_loader(dataset, rank, world_size, batch_size=1)
+
+    print(f"Performing DIP SISR on {num_images} images.")
+    print(f"Output directory: {output_dir}")
+
+    # Initialise final performance metrics averages
     running_psnr = 0
     running_ssim = 0
     running_lpips = 0
-    start_time = time.time()
 
-    training_metrics = {
-        'psnr' : np.zeros(shape=(training_config['num_epochs'])),
-        'ssim' : np.zeros(shape=(training_config['num_epochs']))
+    # Initialise performance over training metrics
+    metrics = {
+        'avg_psnrs' : np.zeros(shape=(training_config['num_iter'])),
+        'avg_ssims' : np.zeros(shape=(training_config['num_iter']))
     }
 
+    # Get LPIPS model
     lpips_model = lpips_.LPIPS(net='alex').to(device)
 
-    # Perform SISR using DIP for num_images many images
-    for idx in range(num_images):   
-        
-        LR_image, HR_image, image_name = dataset[idx]
+    start_time = time.time()
 
-        if verbose:
-             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_epochs']} iterations. ")
+    # Perform SISR using DIP for num_images many images
+    for idx, (LR_image, HR_image, image_name) in enumerate(data_loader):   
+
+        print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
+        
+        # Define DIP network
+        net = get_DIP_network(input_depth=4, pad='reflection').to(device)
+        model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
-        resolved_image, image_training_metrics = DIP_ISR(LR_image, HR_image, factor, training_config, use_GT=True, verbose=verbose)
+        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, device=rank)
 
         # Accumulate metrics
         resolved_image = resolved_image.to(device)
@@ -156,45 +173,80 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
         running_lpips += lpips(resolved_image, HR_image, lpips_model)
         resolved_image = np.clip(resolved_image.cpu().numpy()[0], 0, 1)
         HR_image = np.clip(HR_image.cpu().numpy(), 0, 1)
-    
+        
+        # Accumulate the final metrics
         running_psnr += psnr(resolved_image, HR_image)
         running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
 
-        training_metrics['psnr'] += np.array(image_training_metrics['psnr'])
-        training_metrics['ssim'] += np.array(image_training_metrics['ssim'])
+        # Accumulate the metrics over iterations
+        metrics['avg_psnrs'] += np.array(image_train_metrics['psnr'])
+        metrics['avg_ssims'] += np.array(image_train_metrics['ssim'])
 
-        if verbose:
-            print("Done.")
+        print("Done.")
 
-        if save_resolved_images:
+        # Save resolved image
+        if save_output:
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, image_name, output_dir)
-
-        if verbose:
-            print("\n")
 
         del LR_image, HR_image, resolved_image
 
     print(f"Done for all {num_images} images.")
 
     # Get run time
-    end_time = time.time()
-    runtime = end_time - start_time
+    metrics['runtime'] = time.time() - start_time
 
-    # Calculate metric averages
-    avg_psnr = running_psnr / num_images
-    avg_ssim = running_ssim / num_images
-    avg_lpips = running_lpips / num_images
+    # Get average final metrics for each resolved image
+    metrics['final_psnr'] = running_psnr / num_images
+    metrics['final_ssim'] = running_ssim / num_images
+    metrics['final_lpips'] = running_lpips / num_images
 
-    # Calculate training metric averages and convert to list for log saving
-    training_metrics = {
-        'Average PSNR per epoch' : np.divide(training_metrics['psnr'], num_images).tolist(),
-        'Average SSIM per epoch' : np.divide(training_metrics['ssim'], num_images).tolist()
-    }
+    # Wait for all gpus to get to this point
+    dist.barrier()
 
-    # Save metrics log (don't need to save model for DIP)
-    save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **{**training_config, **training_metrics })
+    # Send all the gpu node metrics back to the main gpu
+    torch.cuda.set_device(rank)
+    metrics_gpus = [None for _ in range(world_size)]
+    dist.all_gather_object(metrics_gpus, metrics)
 
+    if rank == 0:
+        print('Done training')
+
+        # Get runtime
+        runtime = np.max([gpu_metrics['runtime'] for gpu_metrics in metrics_gpus])
+        runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
+
+        # Calculate mean across GPUs for each epoch
+        avg_psnrs = [gpu_metrics['avg_psnrs'] for gpu_metrics in metrics_gpus]
+        avg_ssims = [gpu_metrics['avg_ssims'] for gpu_metrics in metrics_gpus]
+        avg_psnrs = np.mean(np.vstack(avg_psnrs), axis=0)
+        avg_ssims = np.mean(np.vstack(avg_ssims), axis=0)
+
+        # Calculate average final metrics across GPUs
+        avg_final_psnr = np.mean([gpu_metrics['final_psnr'] for gpu_metrics in metrics_gpus])
+        avg_final_ssim = np.mean([gpu_metrics['final_ssims'] for gpu_metrics in metrics_gpus])
+        avg_final_lpip = np.mean([gpu_metrics['final_lpips'] for gpu_metrics in metrics_gpus])
+
+        # Final train metric for the log
+        final_metrics = {
+            "Number of images evaluated over" : num_images,
+            "Train runtime" : runtime,
+            "Average PSNR per epoch" : avg_psnrs.tolist(),
+            "Average SSIM per epoch" : avg_ssims.tolist(),
+            "Average LPIPS per epoch" : 'Not tracked during training due to VGG-19 memory overhead',
+            "Average final PSNR" : avg_final_psnr,
+            'Average final SSIM' : avg_final_ssim,
+            "Average final LPIPS" : avg_final_lpip,
+        }
+
+        # Output directory
+        date = datetime.now()
+        out_dir = os.path.join(out_dir, f'DIP/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+        # Save metrics log and model
+        save_log(output_dir, **final_metrics)
 
     
 if __name__ == '__main__':
@@ -202,18 +254,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Get command line arguments for program behaviour
+    parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
-    parser.add_argument('--mode', type=str, help='"eval": get evaluation metrics over some images, "inf": do ISR to obtain HR images', required=True)
-    parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
-    parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
-    parser.add_argument('--save_output', type=bool, help='Whether to save output when evaluating (--model=eval)', default=False)
+    parser.add_argument('--num_iterations', type=int, help='Number of iter when training', default=1)
+    parser.add_argument('--train_log_freq', type=int, help='How many iterations between logging metrics when training', default=100)
+    parser.add_argument('--save_output', type=bool, help='Whether to save output when evaluating', default=False)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=1)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
     parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
-    parser.add_argument('--verbose', type=bool, help='Informative command line output during execution', default=False)
     args = parser.parse_args()
 
+    data_dir = args.data_dir
     cwd = args.out_dir
 
     if not os.path.exists(cwd) or not os.path.isdir(cwd):
@@ -221,18 +273,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get dataset
-    LR_dir = os.path.join(cwd, 'data/DIV2K_train_LR_x8/')
-    HR_dir = os.path.join(cwd, 'data/DIV2K_train_HR/') # = '' if not using HR GT for evaluation
+    LR_dir = os.path.join(data_dir, 'data/DIV2K_train_LR_x8/')
+    HR_dir = os.path.join(data_dir, 'data/DIV2K_train_HR/')
     
     # Set the output and trained model directory
     output_dir = os.path.join(cwd, rf'out\DIP\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
-    trained_dir = os.path.join(cwd, r'trained\GAN')
-
-    # Program mode i.e. 'train' for training, 'eval' for evaluation
-    mode = args.mode
-
-    # Display information during running
-    verbose = args.verbose
 
     # Number of images from the dataset to use
     num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
@@ -281,37 +326,37 @@ if __name__ == '__main__':
     # Whether to save output when evaluating
     save_output = args.save_output
 
-    # use_GT is used as a check to get performance metrics or not which require ground truth
-    use_GT = True if HR_dir else False
-    if verbose: assert(use_GT), 'Verbose makes the performance metrics visible during training which require ground truths.'
-    
     # Hyperparameters
     learning_rate = 0.01
 
     if downsample:
-        num_epochs = 8000
         reg_noise_std = 0.07
     else:
-        num_epochs = 2000
         reg_noise_std = 0.05
 
-    if args.num_epochs:
-        num_epochs = args.num_epochs
+    # Number of iterations when training
+    num_iter = args.num_iter
+
+    # How many iterations between saving metrics when training
+    train_log_freq = args.train_log_freq
 
     # Define the training configuration using above
     training_config = {
         "learning_rate" : learning_rate,
-        "num_epochs" : num_epochs,
+        "num_iter" : num_iter,
         "reg_noise_std" : reg_noise_std
     }
 
-    if verbose:
-        print(f"Performing DIP SISR on {num_images} images.")
-        print(f"Output directory: {output_dir}")
-
-    if mode == 'eval':
-        dataset = DIPDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, HR_dir=HR_dir, num_images=num_images)
-
-        DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_output, num_images, verbose)
-    else:
-        assert(False), 'Pick either DIP evaluation (eval) or DIP inference (inf) as your batch mode'
+    # Initialise gpus
+    world_size = args.num_gpus 
+    mp.spawn(
+        main,
+        args=(world_size, 
+              LR_dir, 
+              HR_dir, 
+              output_dir, 
+              factor, 
+              num_images, 
+              save_output,
+              train_log_freq),
+        nprocs=world_size)
