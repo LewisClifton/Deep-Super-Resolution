@@ -72,7 +72,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
         # Log evaluation metrics
         if iter % train_log_freq == 0:
             
-            epoch_psnr = psnr(out_HR, HR_image_np)
+            epoch_psnr = psnr(out_HR, HR_image)
             epoch_ssim = ssim(out_HR, HR_image)
             epoch_lpips = lpips(out_HR, HR_image)
 
