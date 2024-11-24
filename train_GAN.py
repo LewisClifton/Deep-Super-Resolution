@@ -102,7 +102,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
                     batch_psnrs = []
                     batch_ssims = []
                     batch_lpipss = []
-                    batch_size = LR_patches[0]
+                    batch_size = LR_patches.shape[0]
                     
                     for i in range(batch_size):
                         
