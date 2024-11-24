@@ -71,17 +71,15 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
 
         # Log evaluation metrics
         if iter % train_log_freq == 0:
-            epoch_lpips = lpips(out_HR, HR_image).cpu()
-
-            out_HR_np = torch_to_np(out_HR)
-            epoch_psnr = psnr(out_HR_np, HR_image_np)
-            epoch_ssim = ssim(out_HR_np, HR_image_np)
+            
+            epoch_psnr = psnr(out_HR, HR_image_np)
+            epoch_ssim = ssim(out_HR, HR_image)
+            epoch_lpips = lpips(out_HR, HR_image)
 
             psnrs.append(epoch_psnr)
             ssims.append(epoch_ssim)
             lpipss.append(epoch_lpips)
 
-            out_HR_np = torch_to_np(out_HR)
             if device == 0:
                 print(f"Iteration {iter+1}/{training_config['num_iter']}:")
                 print(f"PSNR: {epoch_psnr}")
@@ -89,7 +87,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
                 print(f'LPIPS: {epoch_lpips}')
                 print(f"Iteration runtime: {time.time() - start_time} seconds")
             
-            del out_HR_np, epoch_lpips
+            del epoch_psnr, epoch_ssim, epoch_lpips
 
         iter += 1
         out_HR.detach().cpu()
