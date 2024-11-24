@@ -108,7 +108,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
                     epoch_ssims.append(ssim(out_G, HR_patches).item())
                     epoch_lpipss.append(lpips(out_G, HR_patches).item())
 
-                    del LR_patch_size, HR_patch_size, out_G
+                    del LR_patches, HR_patches, out_G
                     
 
         if epoch % train_log_freq  == 0:
