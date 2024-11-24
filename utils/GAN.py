@@ -105,6 +105,7 @@ def get_loss_D(real_output, fake_output, bce_loss):
 # Get generator training loss function
 class PerceptualLoss(nn.Module):
     def __init__(self):
+        super(PerceptualLoss, self).__init__()
         self.vgg_loss = Vgg19Loss()
 
     def forward(self, fake_output_G, HR_images, fake_output_D, bce_loss):

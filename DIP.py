@@ -132,7 +132,8 @@ def main(rank,
          HR_dir, 
          output_dir, 
          factor, 
-         num_images, 
+         num_images,
+         training_config, 
          save_output,
          train_log_freq):
     
@@ -371,6 +372,7 @@ if __name__ == '__main__':
               output_dir, 
               factor, 
               num_images, 
+              training_config,
               save_output,
               train_log_freq),
         nprocs=world_size)
