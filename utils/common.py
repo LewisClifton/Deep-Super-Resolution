@@ -114,3 +114,10 @@ def torch_to_np(img_var):
     From 1 x C x W x H [0..1] to  C x W x H [0..1]
     '''
     return img_var.detach().cpu().numpy()[0]
+
+
+def lpips(im0, im1, lpips_model):
+    with torch.no_grad():
+        loss =  lpips_model.forward(im0,im1).item()
+        del lpips_model
+        return loss

@@ -7,12 +7,12 @@ import sys
 import lpips as lpips_
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
+import torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 from utils.downsampler import Downsampler
 from models.DIP import get_DIP_network
 from dataset import DIPDIV2KDataset
 from utils.DIP import *
-from utils.metrics import *
 from utils.common import *
 
 
@@ -21,7 +21,7 @@ torch.backends.cudnn.enabled = True
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, device):
+def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, psnr, ssim, device):
     # Perform DIP ISR on a single image
 
     # Define loss
@@ -150,8 +150,10 @@ def main(rank,
         'avg_ssims' : np.zeros(shape=(training_config['num_iter']))
     }
 
-    # Get LPIPS model
+    # Get metrics models
     lpips_model = lpips_.LPIPS(net='alex').to(device)
+    psnr = PeakSignalNoiseRatio()
+    ssim = StructuralSimilarityIndexMeasure()
 
     start_time = time.time()
 
@@ -165,7 +167,7 @@ def main(rank,
         model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
-        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, device=rank)
+        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, device=rank)
 
         # Accumulate metrics
         resolved_image = resolved_image.to(device)

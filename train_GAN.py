@@ -6,12 +6,12 @@ from datetime import datetime
 import time
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
+import torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator
 from dataset import GANDIV2KDataset
 from utils.GAN import *
-from utils.metrics import *
 from utils.common import *
 
 
@@ -19,7 +19,7 @@ from utils.common import *
 torch.backends.cudnn.enabled = True
 
 
-def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device):
+def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, psnr, ssim, device):
     # Train GAN to perform SISR
 
     # Get loss functions

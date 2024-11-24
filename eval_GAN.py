@@ -7,11 +7,11 @@ import time
 import lpips as lpips_
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
+import torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 from models.GAN.generator import Generator
 from dataset import GANDIV2KDataset
 from utils.GAN import *
-from utils.metrics import *
 from utils.common import *
 
 
@@ -27,7 +27,10 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, output_dir, batch_size, device):
     running_ssim = 0
     running_lpips = 0
 
+    # Get metrics models
     lpips_model = lpips_.LPIPS(net='alex').to(device)
+    psnr = PeakSignalNoiseRatio()
+    ssim = StructuralSimilarityIndexMeasure()
 
     print(f'Starting GAN evaluation..')
 
