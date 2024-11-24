@@ -99,26 +99,12 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
 
             if epoch % train_log_freq == 0:
                 with torch.no_grad():
-                    batch_psnrs = []
-                    batch_ssims = []
-                    batch_lpipss = []
-                    batch_size = LR_patches.shape[0]
                     
-                    for i in range(batch_size):
-                        
-                        LR_patch = LR_patches[i].unsqueeze(0).to(device)
-                        out_G = gan_G(LR_patch).detach().cpu().numpy().squeeze(0)
-                        HR_patch = HR_patches[i].to(device)
-                        
-                        HR_patch = HR_patches.numpy()
-                        batch_psnrs.append(psnr(out_G, HR_patch))
-                        batch_ssims.append(ssim(out_G, HR_patch))
-                        batch_lpipss.append(lpips(out_G, HR_patch))
-                        
-                        del LR_patch, out_G
-                    epoch_psnrs.append(sum(batch_psnrs)/batch_size)
-                    epoch_ssims.append(sum(batch_ssims)/batch_size)
-                    epoch_lpipss.append(sum(batch_lpipss)/batch_size)
+                    out_G = gan_G(LR_patches)
+                    epoch_psnrs.append(psnr(out_G, HR_patches).item())
+                    epoch_ssims.append(ssim(out_G, HR_patches).item())
+                    epoch_lpipss.append(lpips(out_G, HR_patches).item())
+                    
 
         if epoch % train_log_freq  == 0:
             avg_psnrs.append(sum(epoch_psnrs)/batches)
