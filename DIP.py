@@ -175,7 +175,7 @@ def main(rank,
         model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
-        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips, device=rank)
+        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=rank)
 
         # Accumulate running lpips
         resolved_image = resolved_image.to(device)

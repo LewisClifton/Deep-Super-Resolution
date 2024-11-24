@@ -28,8 +28,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     perceptualLoss = PerceptualLoss().to(device)
 
     # Get metrics
-    psnr = PeakSignalNoiseRatio().to(device)
-    ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
+    psnr = PSNR()
+    ssim = SSIM(data_range=1.0)
     lpips = LPIPS(net='alex').to(device)
     
     # Get optimisers for both models
