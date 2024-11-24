@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
-import torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator

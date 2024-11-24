@@ -7,7 +7,7 @@ import time
 import lpips as lpips_
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
-import torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 
 from models.GAN.generator import Generator
 from dataset import GANDIV2KDataset
