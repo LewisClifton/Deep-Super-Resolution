@@ -37,7 +37,6 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     # Put everything on the GPU
     LR_image = LR_image.to(device).detach()
     HR_image = HR_image.to(device).detach()
-    HR_image_np = HR_image.detach().cpu().numpy()[0] # For evaluation metrics
 
     # Optimise the network over the input
     iter = 0
@@ -112,7 +111,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     net.cpu()
 
     del net_input
-    del LR_image, HR_image, HR_image_np
+    del LR_image, HR_image
     del net, mse, psnr, ssim, lpips
     del downsampler
     torch.cuda.empty_cache()
@@ -162,7 +161,7 @@ def main(rank,
 
     # Get metrics models
     psnr = PSNR().to(rank)
-    ssim = SSIM(data_range=1.)
+    ssim = SSIM(data_range=1.).to(rank)
     lpips = LPIPS(net_type='alex').to(rank)
 
     start_time = time.time()
