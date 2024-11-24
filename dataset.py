@@ -1,5 +1,4 @@
 from torch.utils.data import Dataset
-import cv2
 import os
 from torchvision import transforms
 import numpy as np
@@ -7,56 +6,50 @@ from utils.degradation import *
 
 
 def get_image_pair(dataset_config, idx):
-    # Get the low resolution image
-    LR_image =  cv2.imread(os.path.join(dataset_config.LR_dir, dataset_config.LR_images[idx]))
-    LR_image = cv2.cvtColor(LR_image, cv2.COLOR_BGR2RGB)
+    # Get the low-resolution image
+    LR_image_path = os.path.join(dataset_config.LR_dir, dataset_config.LR_images[idx])
+    LR_image = Image.open(LR_image_path).convert("RGB")  # Ensure RGB mode
 
     if dataset_config.downsample:
         LR_image = downsample(LR_image)
-                              
-    # Apply noise degredation if necessary:
+
+    # Apply noise degradation if necessary:
     if dataset_config.noise_type is not None:
         if dataset_config.noise_type['type'] == 'SaltAndPepper':
             LR_image = add_salt_pepper_noise(LR_image, s=dataset_config.noise_type['s'], p=dataset_config.noise_type['p'])
         elif dataset_config.noise_type['type'] == 'Gaussian':
             LR_image = add_gaussian_noise(LR_image, std=dataset_config.noise_type['std'])
-                              
+
     # Get the expected dimensions of the HR image given the LR image shape and the scale factor
-    width_HR = dataset_config.scale_factor * LR_image.shape[1]
-    height_HR = dataset_config.scale_factor * LR_image.shape[0]
+    width_LR, height_LR = LR_image.size  # Pillow uses (width, height)
+    width_HR = dataset_config.scale_factor * width_LR
+    height_HR = dataset_config.scale_factor * height_LR
 
     if dataset_config.HR_dir is None:
         # If testing without GT
-        HR_image = np.zeros(shape = (width_HR, height_HR))
+        HR_image = Image.new("RGB", (width_HR, height_HR))  # Create a blank image
     else:
         # Read the HR GT image
-        HR_image = cv2.imread(os.path.join(dataset_config.HR_dir, dataset_config.HR_images[idx]))
-        HR_image = cv2.cvtColor(HR_image, cv2.COLOR_BGR2RGB)
+        HR_image_path = os.path.join(dataset_config.HR_dir, dataset_config.HR_images[idx])
+        HR_image = Image.open(HR_image_path).convert("RGB")
 
+    # Ensure GT HR is scale-factor times bigger than LR without exceeding original HR size
+    if width_HR > HR_image.size[0] and height_HR > HR_image.size[1]:
+        # Adjust dimensions to the largest multiples of scale factor less than HR size
+        width_HR = (HR_image.size[0] // dataset_config.scale_factor) * dataset_config.scale_factor
+        height_HR = (HR_image.size[1] // dataset_config.scale_factor) * dataset_config.scale_factor
+        width_LR = width_HR // dataset_config.scale_factor
+        height_LR = height_HR // dataset_config.scale_factor
 
-    # The following ensures GT HR is scale factor times bigger than LR without making HR bigger 
-    # if LR size times by scale factor exceeds HR size
-    # using the if statement instead of only doing lines 39-46 ensures we keep the 
-    # same LR size if possible.
-
-    if width_HR > HR_image.shape[1] and height_HR > LR_image.shape[0]:
-    
-        width_HR = int((width_HR // dataset_config.scale_factor) * dataset_config.scale_factor)  # Find the largest multiple of z <= x
-        height_HR = int((height_HR // dataset_config.scale_factor) * dataset_config.scale_factor)
-
-        width_LR = int(width_HR / dataset_config.scale_factor)
-        height_LR = int(height_HR / dataset_config.scale_factor)
-
-        HR_image = cv2.resize(HR_image, (width_HR, height_HR))
-        LR_image = cv2.resize(LR_image, (width_LR, height_LR))
-
+        HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
+        LR_image = LR_image.resize((width_LR, height_LR), Image.BICUBIC)
     else:
-        HR_image = cv2.resize(HR_image, (width_HR, height_HR))
+        HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
 
     # Convert to tensor
     HR_image = transforms.ToTensor()(HR_image)
     LR_image = transforms.ToTensor()(LR_image)
-    
+
     # Get the filename of the input
     filename, _ = os.path.splitext(dataset_config.LR_images[idx])
 
