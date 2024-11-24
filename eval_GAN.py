@@ -30,7 +30,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, output_dir, batch_size, device):
     # Get metrics models
     psnr = PSNR()
     ssim = SSIM(data_range=1.)
-    lpips = LPIPS(net='alex').to(device)
+    lpips = LPIPS(net_type='alex').to(device)
 
     print(f'Starting GAN evaluation..')
 

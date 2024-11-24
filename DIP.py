@@ -162,7 +162,7 @@ def main(rank,
     # Get metrics models
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.)
-    lpips = LPIPS(net='alex').to(device)
+    lpips = LPIPS(net_type='alex').to(device)
 
     start_time = time.time()
 
