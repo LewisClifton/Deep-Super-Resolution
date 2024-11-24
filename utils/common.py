@@ -1,11 +1,27 @@
+import re
+from typing import OrderedDict
 import torch
 import numpy as np
 from PIL import Image
 import numpy as np
 from datetime import datetime
 import os
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import DataLoader
 
-# create folder with time as name
+# Setup for multi-gpu loading
+def setup_gpu(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+# Get the dataloaders
+def get_data_loader(dataset, rank, world_size, batch_size=32):
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False)
+    dataloader = DataLoader(dataset, batch_size=batch_size, pin_memory=False, num_workers=0, drop_last=False, shuffle=False, sampler=sampler)
+    
+    return dataloader
 
 def save_image(image, image_name, output_dir):
 
@@ -21,23 +37,10 @@ def save_image(image, image_name, output_dir):
 
     print(f"Saved to {path}")
 
-def save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **kwargs):
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def save_log(output_dir, **kwargs):
 
     path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}_log.txt')
-
-    with open(path, 'w') as f:
-        f.write(f"Time of log file generation: {str(datetime.now())}\n")
-        
-        f.write(f"Performance metrics:\n")
-        f.write(f"Number of images: {str(num_images)}\n")
-        f.write(f"Time to run: {str(runtime)}\n")
-        f.write(f"Average PSNR: {str(avg_psnr)}\n")
-        f.write(f"Average SSIM: {str(avg_ssim)}\n")
-        f.write(f"Average LPIPS: {str(avg_lpips)}\n")
-        
+    with open(path, 'w') as f:        
         if kwargs:
             for key, value in kwargs.items():
                 f.write(f"{key}: {str(value)}\n")
@@ -52,6 +55,23 @@ def save_model(model, output_dir):
     torch.save(model.state_dict(), path)
 
     print(f'Model saved to {path}')
+
+# Load model
+def load_model(model, model_path):
+    
+    model_state_dict = torch.load(model_path, weights_only=True)
+
+    model_dict = OrderedDict()
+    pattern = re.compile('module.')
+    for k,v in model_state_dict.items():
+        if re.search("module", k):
+            model_dict[re.sub(pattern, '', k)] = v
+        else:
+            model_dict = model_state_dict
+
+    model.load_state_dict(model_dict)
+
+    return model
 
 def pil_to_np(img_PIL):
     '''Converts image in PIL format to np.array.

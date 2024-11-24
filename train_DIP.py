@@ -196,41 +196,6 @@ def DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_resolv
     save_log(num_images, runtime, avg_psnr, avg_ssim, avg_lpips, output_dir, **{**training_config, **training_metrics })
 
 
-def DIP_ISR_Batch_inf(factor, dataset, training_config, output_dir, num_images, verbose=False):
-    # Perform SISR using DIP for num_images many images
-
-    # Get start time
-    start_time = time.time()
-
-    for idx in range(num_images):   
-
-        LR_image, HR_image, image_name = dataset[idx]
-
-        if verbose:
-            print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_epochs']} iterations. ")
-
-        # Perform DIP SISR for the current image
-        resolved_image, _ = DIP_ISR(LR_image, HR_image, factor, training_config, use_GT=False, verbose=True)
-
-        if verbose:
-            print("Done.")
-
-        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-        save_image(resolved_image, image_name, output_dir)
-
-        if verbose:
-            print("\n")
-
-    
-    print(f"Done for all {num_images} images.")
-    
-    # Get run time
-    runtime = time.time() - start_time
-    
-    # Save metrics log
-    save_log(num_images, runtime, 'N/a', 'N/a', 'N/a', output_dir, **{'Iterations per image' : training_config['num_epochs']})
-
-
     
 if __name__ == '__main__':
 
@@ -348,9 +313,5 @@ if __name__ == '__main__':
         dataset = DIPDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, HR_dir=HR_dir, num_images=num_images)
 
         DIP_ISR_Batch_eval(factor, dataset, training_config, output_dir, save_output, num_images, verbose)
-    elif mode == 'inf':
-        dataset = DIPDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images)
-
-        DIP_ISR_Batch_inf(factor, dataset, training_config, output_dir ,num_images, verbose)
     else:
         assert(False), 'Pick either DIP evaluation (eval) or DIP inference (inf) as your batch mode'
