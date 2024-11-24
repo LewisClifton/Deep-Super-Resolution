@@ -30,7 +30,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
 
     # Get fixed noise for the network input
-    net_input = get_noise(4, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).detach()
+    net_input = get_noise(32, 'noise', (LR_image.size()[1]*scale_factor, LR_image.size()[2]*scale_factor)).detach()
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
 
@@ -174,7 +174,7 @@ def main(rank,
             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
         # Define DIP network
-        net = get_DIP_network(input_depth=4, pad='reflection').to(rank)
+        net = get_DIP_network(input_depth=32, pad='reflection').to(rank)
         net = DDP(net, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
