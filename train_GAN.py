@@ -54,7 +54,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         # Train Generator
         fake_output_G = gan_G(LR_patches)
         fake_output_D = gan_D(fake_output_G.detach())
-        loss_G = perceptualLoss(fake_output_G, HR_patches, fake_output_D, bce_loss, device)
+        loss_G = perceptualLoss(fake_output_G, HR_patches, fake_output_D, bce_loss)
 
         # Update Generator
         gan_G.zero_grad()
