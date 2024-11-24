@@ -44,6 +44,10 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     psnrs = []
     ssims = []
     lpipss = []
+
+    allocated_memory = torch.cuda.memory_allocated(0)  # 0 specifies GPU device ID
+    print(f"Allocated memory on GPU 0: {allocated_memory / (1024 ** 2):.2f} MB")
+
     
     # Define closure for training
     def closure():
@@ -55,9 +59,15 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
 
         # Get iteration start time
         start_time = time.time()
+        allocated_memory = torch.cuda.memory_allocated(0)  # 0 specifies GPU device ID
+        print(f"Allocated memory on GPU 0: {allocated_memory / (1024 ** 2):.2f} MB")
 
         # Get model output
         out_HR = net(net_input)
+
+        allocated_memory = torch.cuda.memory_allocated(0)  # 0 specifies GPU device ID
+        print(f"Allocated memory on GPU 0: {allocated_memory / (1024 ** 2):.2f} MB")
+
 
         out_LR = downsampler(out_HR)
 
