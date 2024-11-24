@@ -34,6 +34,8 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
 
+    print(net_input.shape)
+
     # Put everything on the GPU
     LR_image = LR_image.to(device).detach()
     HR_image = HR_image.to(device).detach()
@@ -169,6 +171,8 @@ def main(rank,
 
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(data_loader):   
+
+        print(LR_image.shape)
 
         if rank == 0:
             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
