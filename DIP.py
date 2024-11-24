@@ -31,7 +31,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
 
     print(HR_image.shape)
     # Get fixed noise for the network input
-    net_input = get_noise(32, 'noise', (HR_image.shape[1], HR_image.shape[2])).detach()
+    net_input = get_noise(32, 'noise', (HR_image.shape[2], HR_image.shape[3])).detach()
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
 
