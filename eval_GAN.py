@@ -159,10 +159,10 @@ if __name__ == '__main__':
     parser.add_argument('--num_gpus', type=int, help='Number of gpus to run models with', default=2)
     parser.add_argument('--num_images', type=int, help='Number of images to use for evaluation', default=-1)
     parser.add_argument('--save_images', type=bool, help='Whether to save super-resolved images', default=False)
-    parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation (--mode="eval")', required=False)
-    parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
-    parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
-    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
+    parser.add_argument('--model_path', type=str, help='Path to trained model for evaluation', required=True)
+    parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating. "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
+    parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating. In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
+    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating')
     args = parser.parse_args()
 
     data_dir = args.data_dir

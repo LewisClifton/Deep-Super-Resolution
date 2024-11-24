@@ -227,9 +227,9 @@ if __name__ == '__main__':
     # Get command line arguments for program behaviour
     parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
-    parser.add_argument('--num_epochs', type=int, help='Number of epochs when training (--mode=train)', default=1)
+    parser.add_argument('--num_epochs', type=int, help='Number of epochs when training', default=1)
     parser.add_argument('--num_gpus', type=int, help='Number of gpus to run models with', default=2)
-    parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training (--mode=train)', default=100)
+    parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training', default=-1)
     args = parser.parse_args()
 

@@ -258,11 +258,11 @@ if __name__ == '__main__':
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
     parser.add_argument('--num_iterations', type=int, help='Number of iter when training', default=1)
     parser.add_argument('--train_log_freq', type=int, help='How many iterations between logging metrics when training', default=100)
-    parser.add_argument('--save_output', type=bool, help='Whether to save output when evaluating', default=False)
+    parser.add_argument('--save_output', type=bool, help='Whether to save super-resolved output', default=False)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=1)
-    parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating (--mode=eval). "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
-    parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating (--mode=eval) In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
-    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating (--model=eval)')
+    parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating. "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
+    parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating. In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
+    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating')
     args = parser.parse_args()
 
     data_dir = args.data_dir
