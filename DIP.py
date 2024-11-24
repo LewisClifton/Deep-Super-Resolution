@@ -30,7 +30,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     downsampler = Downsampler(n_planes=3, factor=scale_factor, kernel_type='lanczos2', phase=0.5, preserve_size=True).to(device)
 
     # Get fixed noise for the network input
-    net_input = get_noise(32, 'noise', (HR_image.shape[2], HR_image.shape[3])).detach()
+    net_input = get_noise(4, 'noise', (HR_image.shape[2], HR_image.shape[3])).detach()
     net_input_saved = net_input.detach().clone()
     noise = net_input.detach().clone()
 
@@ -46,7 +46,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     lpipss = []
 
     allocated_memory = torch.cuda.memory_allocated(0)  # 0 specifies GPU device ID
-    print(f"Allocated memory on GPU 0: {allocated_memory / (1024 ** 2):.2f} MB")
+    print(f"Allocated memory on GPU 1: {allocated_memory / (1024 ** 2):.2f} MB")
 
     
     # Define closure for training
@@ -60,13 +60,13 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
         # Get iteration start time
         start_time = time.time()
         allocated_memory = torch.cuda.memory_allocated(0)  # 0 specifies GPU device ID
-        print(f"Allocated memory on GPU 0: {allocated_memory / (1024 ** 2):.2f} MB")
+        print(f"Allocated memory on GPU 2: {allocated_memory / (1024 ** 2):.2f} MB")
 
         # Get model output
         out_HR = net(net_input)
 
         allocated_memory = torch.cuda.memory_allocated(0)  # 0 specifies GPU device ID
-        print(f"Allocated memory on GPU 0: {allocated_memory / (1024 ** 2):.2f} MB")
+        print(f"Allocated memory on GPU 3: {allocated_memory / (1024 ** 2):.2f} MB")
 
 
         out_LR = downsampler(out_HR)
@@ -182,7 +182,7 @@ def main(rank,
             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
         # Define DIP network
-        net = get_DIP_network(input_depth=32, pad='reflection').to(rank)
+        net = get_DIP_network(input_depth=4, pad='reflection').to(rank)
         net = DDP(net, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
