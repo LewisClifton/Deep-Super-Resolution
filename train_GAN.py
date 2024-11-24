@@ -44,8 +44,9 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         # Train Discriminator
         real_output_D = gan_D(HR_patches) # Discriminator output for real HR images
         
-        fake_output_G = gan_G(LR_patches) # Generator output for LR images
-        fake_output_D = gan_D(fake_output_G.detach()) # Discriminator output for fake HR images (i.e. generated from LR by generator)
+        with torch.no_grad():
+            fake_output_G = gan_G(LR_patches) # Generator output for LR images
+        fake_output_D = gan_D(fake_output_G) # Discriminator output for fake HR images (i.e. generated from LR by generator)
         loss_D = get_loss_D(real_output_D, fake_output_D, bce_loss)
 
         # Update Discriminator
@@ -235,6 +236,8 @@ def main(rank,
         # Save metrics log and model
         save_log(output_dir, **final_train_metrics)
         save_model(trained_model.module, output_dir)
+
+    dist.destroy_process_group()
 
 
 

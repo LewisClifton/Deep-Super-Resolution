@@ -173,7 +173,7 @@ def main(rank,
         
         # Define DIP network
         net = get_DIP_network(input_depth=4, pad='reflection').to(device)
-        model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+        net = DDP(net, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         # Perform DIP SISR for the current image
         resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=rank)
@@ -261,6 +261,8 @@ def main(rank,
 
         # Save metrics log and model
         save_log(output_dir, **final_metrics)
+
+    dist.destroy_process_group()
 
     
 if __name__ == '__main__':
