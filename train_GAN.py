@@ -137,7 +137,10 @@ def main(world_size,
          output_dir, 
          factor, 
          num_images, 
-         num_epoch):
+         num_epoch,
+         LR_patch_size,
+         HR_patch_size,
+         train_log_freq):
     
     # setup the process groups
     setup_gpu(rank, world_size)
