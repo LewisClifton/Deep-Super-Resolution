@@ -110,8 +110,11 @@ def main(LR_dir,
     eval_metrics["Number of images evaluated over"] = num_images
     eval_metrics["Eval runtime"] = runtime
 
-    # Save metrics log
-    save_log(out_dir, **eval_metrics)
+    # Save metrics log and model
+    if noise_type is None:
+        save_log(out_dir, **eval_metrics)
+    else:
+        save_log(out_dir, **eval_metrics, **noise_type)
 
 
 # Setup all the parameters for the GAN script

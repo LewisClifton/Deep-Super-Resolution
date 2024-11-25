@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from utils.downsampler import Downsampler
 from models.DIP import get_net
-from dataset import DIPDIV2KDataset
+from dataset import DIV2KDataset
 from utils.DIP import *
 from utils.common import *
 
@@ -136,7 +136,7 @@ def main(LR_dir,
          device):
     
     # Load the dataset
-    dataset = DIPDIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images, noise_type=noise_type, downsample=downsample)
+    dataset = DIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images, noise_type=noise_type, downsample=downsample)
 
     print(f"Performing DIP SISR on {num_images} images.")
     print(f"Output directory: {out_dir}")
@@ -225,7 +225,10 @@ def main(LR_dir,
 
 
     # Save metrics log and model
-    save_log(out_dir, **metrics, **noise_type)
+    if noise_type is None:
+        save_log(out_dir, **metrics)
+    else:
+        save_log(out_dir, **metrics, **noise_type)
 
 
 if __name__ == '__main__':

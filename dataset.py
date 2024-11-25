@@ -66,9 +66,9 @@ def get_image_pair(dataset_config, idx):
 
 # Would've been neater to use inheritance from a DIV2KDataset class but these classes are only short anyway
 
-class DIPDIV2KDataset(Dataset):
+class DIV2KDataset(Dataset):
     def __init__(self, LR_dir, scale_factor, downsample=False, noise_type=None, num_images=-1, HR_dir=None):
-        super(DIPDIV2KDataset, self).__init__()
+        super(DIV2KDataset, self).__init__()
 
         self.downsample = downsample
         self.noise_type = noise_type
