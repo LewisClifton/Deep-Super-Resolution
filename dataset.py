@@ -47,12 +47,9 @@ def get_image_pair(dataset_config, idx):
     if dataset_config.downsample:
         LR_image = downsample(LR_image)
 
-    print("HELLO!")
-
     # Apply noise degradation if necessary:
     if dataset_config.noise_type is not None:
         if dataset_config.noise_type['type'] == 'SaltAndPepper':
-            print("HELLO")
             LR_image = add_salt_pepper_noise(LR_image, s=dataset_config.noise_type['s'], p=dataset_config.noise_type['p'])
         elif dataset_config.noise_type['type'] == 'Gaussian':
             LR_image = add_gaussian_noise(LR_image, std=dataset_config.noise_type['std'])

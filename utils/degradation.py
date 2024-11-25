@@ -7,13 +7,9 @@ def add_gaussian_noise(image, std=1):
     return image
 
 def add_salt_pepper_noise(image, s=0.01, p=0.01):
-
-    print(image.shape)
     
     salt = np.random.rand(image.shape[0], image.shape[1]) < s
     pepper = np.random.rand(image.shape[0], image.shape[1]) < p
-
-    print(salt.shape)
     
     image[salt] = 255
     image[pepper] = 0
