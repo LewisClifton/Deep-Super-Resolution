@@ -136,7 +136,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
 
 def main(LR_dir, 
          HR_dir, 
-         output_dir, 
+         out_dir, 
          factor, 
          num_images, 
          num_epoch,
@@ -177,15 +177,9 @@ def main(LR_dir,
     train_metrics["Number of images used for training"] = num_images
     train_metrics["Train runtime"] = runtime
 
-    # Output directory
-    date = datetime.now()
-    out_dir = os.path.join(out_dir, f'trained/GAN/{date.strftime("%Y_%m_%d_%p%I_%M")}')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
     # Save metrics log and model
-    save_log(output_dir, **train_metrics)
-    save_model(trained_model.module, output_dir)
+    save_log(out_dir, **train_metrics)
+    save_model(trained_model.module, out_dir)
 
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
@@ -202,19 +196,25 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data_dir = args.data_dir
-    output_dir = args.out_dir
+    out_dir = args.out_dir
 
     if not os.path.isdir(data_dir):
         print(f'{data_dir} not found.')
         sys.exit(1)
 
-    if not os.path.isdir(output_dir):
-        print(f'{output_dir} not found.')
+    if not os.path.isdir(out_dir):
+        print(f'{out_dir} not found.')
         sys.exit(1)
 
     # Get dataset
     LR_dir = os.path.join(data_dir, 'DIV2K_train_LR_x8/')
     HR_dir = os.path.join(data_dir, 'DIV2K_train_HR/')
+
+    # Output directory
+    date = datetime.now()
+    out_dir = os.path.join(out_dir, f'trained/GAN/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # Training epochs
     num_epoch = args.num_epochs
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     device = 0
     main(LR_dir,
         HR_dir,
-        output_dir,
+        out_dir,
         factor,
         num_images,
         num_epoch,
