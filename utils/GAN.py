@@ -66,7 +66,7 @@ class Vgg19Loss(nn.Module):
 
         with torch.no_grad():
             # Get the layers of the pretrained vgg network
-            vgg_layers = vgg19(weights = VGG19_Weights.DEFAULT).features
+            vgg_layers = vgg19(weights = VGG19_Weights.IMAGENET1K_V1).features
 
             # Only use layers up to the fourth conv. in the fifth block (layer 36)
             self.net = nn.Sequential(vgg_layers[:36]) 
@@ -78,10 +78,13 @@ class Vgg19Loss(nn.Module):
                 param.requires_grad = False
     
     def forward(self, image1, image2):
+
+        preprocessed_1 = VGG19_Weights.IMAGENET1K_V1.transforms()(image1)
+        preprocessed_2 = VGG19_Weights.IMAGENET1K_V1.transforms()(image2)
         
         # Get the vgg feature maps of the images
-        feature_map1 = self.net(image1)
-        feature_map2 = self.net(image2)
+        feature_map1 = self.net(preprocessed_1)
+        feature_map2 = self.net(preprocessed_2)
 
         # VGG loss is simply mse of the feature maps from the VGG network
         vgg_loss = self.mse(feature_map1, feature_map2)

@@ -8,6 +8,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.multiprocessing as mp
 from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
+from torchvision.models import VGG19_Weights
 
 from utils.downsampler import Downsampler
 from models.DIP import get_net
@@ -20,7 +21,7 @@ from utils.common import *
 torch.backends.cudnn.enabled = True
 
 
-def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, psnr, ssim, lpips, device):
+def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_freq, psnr, ssim, lpips, lpips_preprocess, device):
     # Perform DIP ISR on a single image
 
     # Define loss
@@ -73,7 +74,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
             
             epoch_psnr = psnr(out_HR, HR_image).item()
             epoch_ssim = ssim(out_HR, HR_image).item()
-            epoch_lpips = lpips(out_HR, HR_image).item()
+            epoch_lpips = lpips(lpips_preprocess(out_HR), lpips_preprocess(HR_image)).item()
 
             psnrs.append(epoch_psnr)
             ssims.append(epoch_ssim)
@@ -158,6 +159,7 @@ def main(LR_dir,
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.).to(device)
     lpips = LPIPS(net_type='alex').to(device)
+    lpips_preprocess = VGG19_Weights.IMAGENET1K_V1.transforms()
 
     start_time = time.time()
 
@@ -175,7 +177,7 @@ def main(LR_dir,
               upsample_mode='bilinear').to(device)
 
         # Perform DIP SISR for the current image
-        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=device)
+        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, lpips_preprocess=lpips_preprocess, device=device)
 
         # Accumulate running lpips
         HR_image = HR_image.unsqueeze(0).to(device)
@@ -183,7 +185,7 @@ def main(LR_dir,
         # Accumulate running psnr, ssim, lpips
         running_psnr += psnr(resolved_image, HR_image).item()
         running_ssim += ssim(resolved_image, HR_image).item()
-        running_lpips += lpips(resolved_image, HR_image).item()
+        running_lpips += lpips(lpips_preprocess(resolved_image), lpips_preprocess(HR_image)).item()
         
         # Accumulate the metrics over iterations
         metrics["Average PSNR per epoch"] += np.array(image_train_metrics['psnrs'])

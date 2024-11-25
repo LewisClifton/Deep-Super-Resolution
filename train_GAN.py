@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
+from torchvision.models import VGG19_Weights
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator
@@ -29,6 +30,7 @@ def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, dev
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.0).to(device)
     lpips = LPIPS(net_type='alex').to(device)
+    lpips_preprocess = VGG19_Weights.IMAGENET1K_V1.transforms()
     
     # Get optimisers for both models
     optim_G = torch.optim.Adam(gan_G.parameters(), lr=lr)
@@ -106,7 +108,7 @@ def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, dev
                     out_G = gan_G(LR_patches)
                     epoch_psnrs.append(psnr(out_G, HR_patches).item())
                     epoch_ssims.append(ssim(out_G, HR_patches).item())
-                    epoch_lpipss.append(lpips(out_G, HR_patches).item())
+                    epoch_lpipss.append(lpips(lpips_preprocess(out_G), lpips_preprocess(HR_patches)).item())
 
                     del LR_patches, HR_patches, out_G
                     
