@@ -11,7 +11,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPI
 
 from utils.downsampler import Downsampler
 from models.DIP import get_net
-from dataset import DIPDIV2KDataset, get_image_pair
+from dataset import DIPDIV2KDataset
 from utils.DIP import *
 from utils.common import *
 
@@ -191,10 +191,6 @@ def main(LR_dir,
         # Save resolved image
         if save_output:
             print("Done.")
-
-            print(resolved_image.shape)
-            print(LR_image.shape)
-            print(HR_image.shape)
 
             resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
