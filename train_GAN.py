@@ -179,7 +179,7 @@ def main(LR_dir,
 
     # Save metrics log and model
     save_log(out_dir, **train_metrics)
-    save_model(trained_model.module, out_dir)
+    save_model(trained_model, out_dir)
 
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
