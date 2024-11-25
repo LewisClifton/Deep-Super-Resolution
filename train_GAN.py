@@ -150,6 +150,7 @@ def main(LR_dir,
          HR_patch_size,
          train_log_freq,
          pre_trained_model_path,
+         downsample,
          device):
 
     # Get generator and wrap with DDP
@@ -169,7 +170,7 @@ def main(LR_dir,
     batch_size = 8
 
     # Load the required dataset
-    dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=LR_patch_size, HR_dir=HR_dir, train=True)
+    dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=LR_patch_size, HR_dir=HR_dir, downsample=downsample, train=True)
 
     # Create a dataloader           
     data_loader =  DataLoader(dataset, batch_size=batch_size, pin_memory=False, num_workers=0, drop_last=False, shuffle=False)
@@ -220,6 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--pre_trained_models_path', type=str, help='Path to model pre-trained model discriminator and generator (avoids pre-training again)')
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training', default=-1)
+    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating')
     args = parser.parse_args()
 
     data_dir = args.data_dir
@@ -237,9 +239,17 @@ if __name__ == '__main__':
     LR_dir = os.path.join(data_dir, 'DIV2K_train_LR_x8/')
     HR_dir = os.path.join(data_dir, 'DIV2K_train_HR/')
 
+    # Super resolution scale factor
+    factor = 8
+
+    # Degredation
+    downsample = args.downsample
+    if downsample:
+        factor *= 2
+
     # Output directory
     date = datetime.now()
-    out_dir = os.path.join(out_dir, f'trained/GAN/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, f'trained/GANx{factor}/{date.strftime("%Y_%m_%d_%p%I_%M")}')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
@@ -256,9 +266,6 @@ if __name__ == '__main__':
     if num_images < -1 or num_images == 0:
         print(f'Please provide a valid number of images to use with --num_images=-1 for entire dataset or --num_images > 0')
         sys.exit(1)
-
-    # Super resolution scale factor
-    factor = 8
 
     # Generator input size
     HR_patch_size = (192,192)
@@ -286,4 +293,5 @@ if __name__ == '__main__':
          HR_patch_size,
          train_log_freq,
          pre_trained_model_path,
+         downsample,
          device)
