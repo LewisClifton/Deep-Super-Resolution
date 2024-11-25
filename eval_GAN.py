@@ -114,6 +114,7 @@ def main(rank,
     dist.barrier()
 
     # Send all the gpu node metrics back to the main gpu
+    torch.cuda.set_device(rank)
     eval_metrics_gpus = [None for _ in range(world_size)]
     dist.all_gather_object(eval_metrics_gpus, eval_metrics)
 
