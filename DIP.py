@@ -161,7 +161,6 @@ def main(LR_dir,
 
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(dataset): 
-        LR_image = LR_image.unsqueeze(0)
         HR_image = HR_image.unsqueeze(0)
         image_name = image_name[0]  
 
