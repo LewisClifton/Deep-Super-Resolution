@@ -162,7 +162,7 @@ def main(LR_dir,
     gan_G.train(); gan_D.train()
 
     # Number of minibatch image patches when training(16 in reference)
-    batch_size = 16
+    batch_size = 8
 
     # Load the required dataset
     dataset = GANDIV2KDataset(LR_dir=LR_dir, scale_factor=factor, num_images=num_images, LR_patch_size=LR_patch_size, HR_dir=HR_dir, train=True)
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     factor = 8
 
     # Generator input size
-    HR_patch_size = (96,96)
+    HR_patch_size = (192,192)
     LR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
 
     # Learning rate
