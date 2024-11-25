@@ -11,7 +11,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPI
 
 from utils.downsampler import Downsampler
 from models.DIP import get_net
-from dataset import DIPDIV2KDataset
+from dataset import DIPDIV2KDataset, get_image_pair
 from utils.DIP import *
 from utils.common import *
 
@@ -161,7 +161,7 @@ def main(LR_dir,
 
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(dataset): 
-        image_name = image_name[0]  
+        image_name = image_name
 
         print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
@@ -194,18 +194,15 @@ def main(LR_dir,
             print("Done.")
 
             resolved_image = torch_to_np(resolved_image)
-            print(resolved_image.shape)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, f'{image_name}_resolved', out_dir)
 
-            LR_image = LR_image.cpu().numpy()
-            print(LR_image.shape)
-            LR_image = (LR_image.transpose(1, 2, 0)).astype(np.uint8)
-            save_image(LR_image, f'{image_name}_LR', out_dir)
+            LR_image, HR_image = get_image_pair(dataset, idx)
 
-            HR_image = HR_image.cpu().squeeze(0).numpy()
-            print(HR_image.shape)
-            HR_image = (HR_image.transpose(1, 2, 0)).astype(np.uint8)
+            LR_image = (LR_image.cpu().numpy().transpose(1, 2, 0)).astype(np.uint8)
+            HR_image = (LR_image.cpu().numpy().transpose(1, 2, 0)).astype(np.uint8)
+
+            save_image(LR_image, f'{image_name}_LR', out_dir)
             save_image(HR_image, f'{image_name}_HR', out_dir)
 
         del LR_image, HR_image, resolved_image, net
