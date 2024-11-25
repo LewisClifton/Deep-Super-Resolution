@@ -58,6 +58,8 @@ class Generator(nn.Module):
 
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=3 , kernel_size=9, stride=1, padding=4)
 
+        self.out = nn.Sigmoid()
+
     def forward(self, x):
 
         z = self.conv1(x)
@@ -70,9 +72,9 @@ class Generator(nn.Module):
 
         z = self.pixel_shuffle_blocks(z)
 
-
         z = self.conv3(z)
-
+        
+        z = self.out(z)
         return z
 
         

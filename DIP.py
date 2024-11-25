@@ -182,7 +182,7 @@ def main(LR_dir,
         # Accumulate running psnr, ssim, lpips
         running_psnr += psnr(resolved_image, HR_image).item()
         running_ssim += ssim(resolved_image, HR_image).item()
-        running_lpips += lpips(F.normalize(resolved_image, dim=0), F.normalize(HR_image, dim=0)).item()
+        running_lpips += lpips(resolved_image, HR_image).item()
         
         # Accumulate the metrics over iterations
         metrics["Average PSNR per epoch"] += np.array(image_train_metrics['psnrs'])

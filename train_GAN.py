@@ -55,6 +55,7 @@ def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, dev
 
         # Train Generator
         fake_output_G = gan_G(LR_patches)
+       
         fake_output_D = gan_D(fake_output_G.detach())
         loss_G = perceptualLoss(fake_output_G, HR_patches, fake_output_D, bce_loss)
 
@@ -106,9 +107,10 @@ def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, dev
                     HR_patches = HR_patches.to(device)
                     
                     out_G = gan_G(LR_patches)
+
                     epoch_psnrs.append(psnr(out_G, HR_patches).item())
                     epoch_ssims.append(ssim(out_G, HR_patches).item())
-                    epoch_lpipss.append(lpips(F.normalize(out_G, dim=0), F.normalize(HR_patches, dim = 0)).item())
+                    epoch_lpipss.append(lpips(out_G, HR_patches).item())
 
                     del LR_patches, HR_patches, out_G
                     
