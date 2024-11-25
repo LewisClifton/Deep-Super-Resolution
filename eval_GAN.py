@@ -34,9 +34,10 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
 
     if device == 0:
         print(f'Starting GAN evaluation..')
+        print()
 
     # Perform SISR using the generator for batch_size many images
-    for idx, (LR_image, HR_image, image_name) in enumerate(val_loader): 
+    for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
 
         HR_image = HR_image.to(device)
         LR_image = LR_image.to(device)
@@ -52,19 +53,16 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         running_ssim += ssim(resolved_image, HR_image).item()
         running_lpips += lpips(resolved_image, HR_image).item()
 
-        print(f"Finished evaluating over {image_name}")
-        print()
+        print(f"Done evaluating over {image_name}.")
 
         resolved_image = torch_to_np(resolved_image)
         resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
         save_image(resolved_image, image_name, out_dir)
+        print()
 
         # Delete everything to ensure gpu memory is low
         del LR_image, HR_image
         del resolved_image
-
-    if device == 0:
-        print(f"Done for all {batch_size} images.")
 
     # Calculate metric averages
     eval_metrics = {
@@ -120,7 +118,7 @@ def main(rank,
     dist.all_gather_object(eval_metrics_gpus, eval_metrics)
 
     if rank == 0:
-        print('Done evaluating')
+        print(f'Done evaluating for all {num_images} images.')
 
         # Get runtime
         runtime = np.max([gpu_metrics['runtime'] for gpu_metrics in eval_metrics_gpus])
