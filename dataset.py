@@ -6,10 +6,19 @@ from utils.degradation import *
 
 
 def get_image_pair(dataset_config, idx):
-    # Get the low-resolution image
+    # Get the LR image
     LR_image_path = os.path.join(dataset_config.LR_dir, dataset_config.LR_images[idx])
-    LR_image = Image.open(LR_image_path).convert("RGB")  # Ensure RGB mode
+    LR_image = Image.open(LR_image_path).convert("RGB") 
 
+    # Read the HR GT image
+    HR_image_path = os.path.join(dataset_config.HR_dir, dataset_config.HR_images[idx])
+    HR_image = Image.open(HR_image_path).convert("RGB")
+
+    # Unfortunately the images in the dataset are too big to use in the forward pass so apply downsampling by default
+    LR_image = downsample(LR_image, 2)
+    HR_image = downsample(HR_image, 2)
+
+    # Apply further downsampling if investigating greater scale factors
     if dataset_config.downsample:
         LR_image = downsample(LR_image)
 
@@ -25,14 +34,6 @@ def get_image_pair(dataset_config, idx):
     width_HR = dataset_config.scale_factor * width_LR
     height_HR = dataset_config.scale_factor * height_LR
 
-    if dataset_config.HR_dir is None:
-        # If testing without GT
-        HR_image = Image.new("RGB", (width_HR, height_HR))  # Create a blank image
-    else:
-        # Read the HR GT image
-        HR_image_path = os.path.join(dataset_config.HR_dir, dataset_config.HR_images[idx])
-        HR_image = Image.open(HR_image_path).convert("RGB")
-
     # Ensure GT HR is scale-factor times bigger than LR without exceeding original HR size
     if width_HR > HR_image.size[0] and height_HR > HR_image.size[1]:
         # Adjust dimensions to the largest multiples of scale factor less than HR size
@@ -45,10 +46,6 @@ def get_image_pair(dataset_config, idx):
         LR_image = LR_image.resize((width_LR, height_LR), Image.BICUBIC)
     else:
         HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
-
-    # Unfortunately the images in the dataset are too big to use in the forward pass so apply downsampling by default
-    LR_image = downsample(LR_image, 2)
-    HR_image = downsample(HR_image, 2)
 
     # Convert to tensor
     LR_image = transforms.ToTensor()(LR_image)
