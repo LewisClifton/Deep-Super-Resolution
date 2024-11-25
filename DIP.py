@@ -306,7 +306,7 @@ if __name__ == '__main__':
             print(f'Noise type {args.noise_type} not supported. Use either --noise_type=gauss or --noise_type=saltpepper')
             sys.exit(1)
 
-        out_dir = os.path.join(out_dir, f'{noise_type}/{args.noise_param}')
+        out_dir = os.path.join(out_dir, f'{noise_type['type']}/{args.noise_param}')
 
         
 
