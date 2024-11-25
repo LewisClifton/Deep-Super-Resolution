@@ -1,7 +1,7 @@
 from torchvision.models import vgg19, VGG19_Weights
 import torch.nn as nn
 import torch
-
+import os
 
 
 class Vgg19Loss(nn.Module):
@@ -119,3 +119,12 @@ class PerceptualLoss(nn.Module):
         perceptual_loss = content_loss + adversarial_loss_
 
         return perceptual_loss
+    
+def save_model(model, out_dir):
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    path = os.path.join(out_dir, f'SRGAN.pth')
+    torch.save(model.state_dict(), path)
+
+    print(f'Model saved to {path}')

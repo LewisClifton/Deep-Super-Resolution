@@ -120,8 +120,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
             print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
             print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
             print(f"Epoch run time: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))}")
-    
-    print("Done.")
+
     
     train_metrics = {
         "Average PSNR during training" : avg_psnrs,

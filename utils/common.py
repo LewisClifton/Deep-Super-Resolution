@@ -48,15 +48,6 @@ def save_log(out_dir, **kwargs):
 
     print(f"Log file saved to {path}")
 
-def save_model(model, out_dir):
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-
-    path = os.path.join(out_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}.pth')
-    torch.save(model.state_dict(), path)
-
-    print(f'Model saved to {path}')
-
 # Load model
 def load_model(model, model_path):
     
