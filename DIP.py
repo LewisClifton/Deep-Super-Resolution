@@ -192,10 +192,14 @@ def main(LR_dir,
         if save_output:
             print("Done.")
 
+            print(resolved_image.shape)
+            print(LR_image.shape)
+            print(HR_image.shape)
+
             resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, f'{image_name}_resolved', out_dir)
-
+            
             LR_image = (LR_image.cpu().numpy()).astype(np.uint8)
             save_image(LR_image, f'{image_name}_LR', out_dir)
 
