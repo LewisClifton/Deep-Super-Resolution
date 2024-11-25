@@ -142,6 +142,10 @@ def main(rank,
         # Save metrics log
         save_log(out_dir, **final_eval_metrics)
 
+    dist.barrier()
+    if dist.is_initialized():
+            dist.destroy_process_group()
+
 
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
