@@ -64,6 +64,8 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         del LR_image, HR_image
         del resolved_image
 
+        torch.distributed.barrier()
+
     # Calculate metric averages
     eval_metrics = {
         'avg_psnr' : running_psnr / batch_size,
@@ -111,10 +113,9 @@ def main(rank,
     eval_metrics['runtime'] = time.time() - start_time
 
     # Wait for all gpus to get to this point
-    dist.barrier()
+    torch.distributed.barrier()
 
     # Send all the gpu node metrics back to the main gpu
-    torch.cuda.set_device(rank)
     eval_metrics_gpus = [None for _ in range(world_size)]
     dist.all_gather_object(eval_metrics_gpus, eval_metrics)
 
@@ -144,7 +145,7 @@ def main(rank,
 
     dist.barrier()
     if dist.is_initialized():
-            dist.destroy_process_group()
+        dist.destroy_process_group()
 
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
