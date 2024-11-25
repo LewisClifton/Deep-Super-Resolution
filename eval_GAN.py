@@ -28,8 +28,8 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     running_lpips = 0
 
     # Get metrics models
-    psnr = PSNR()
-    ssim = SSIM(data_range=1.)
+    psnr = PSNR().to(device)
+    ssim = SSIM(data_range=1.).to(device)
     lpips = LPIPS(net_type='alex').to(device)
 
     if device == 0:
