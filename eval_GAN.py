@@ -29,7 +29,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     # Get metrics models
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.).to(device)
-    lpips = LPIPS(net_type='alex').to(device)
+    lpips = LPIPS(net_type='alex', normalize=True).to(device)
 
     # Perform SISR using the generator for batch_size many images
     for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 

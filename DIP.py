@@ -156,7 +156,7 @@ def main(LR_dir,
     # Get metrics models
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.).to(device)
-    lpips = LPIPS(net_type='alex').to(device)
+    lpips = LPIPS(net_type='alex', normalize=True).to(device)
 
     start_time = time.time()
 
