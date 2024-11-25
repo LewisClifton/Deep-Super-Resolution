@@ -71,9 +71,9 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
         # Log evaluation metrics
         if iter % train_log_freq == 0:
             
-            epoch_psnr = psnr(out_HR, HR_image).item().cpu()
-            epoch_ssim = ssim(out_HR, HR_image).item().cpu()
-            epoch_lpips = lpips(out_HR, HR_image).item().cpu()
+            epoch_psnr = psnr(out_HR, HR_image).item()
+            epoch_ssim = ssim(out_HR, HR_image).item()
+            epoch_lpips = lpips(out_HR, HR_image).item()
 
             psnrs.append(epoch_psnr)
             ssims.append(epoch_ssim)
@@ -188,9 +188,9 @@ def main(rank,
         HR_image = HR_image.to(rank)
         
         # Accumulate running psnr, ssim, lpips
-        running_psnr += psnr(resolved_image, HR_image).item().cpu()
-        running_ssim += ssim(resolved_image, HR_image).item().cpu()
-        running_lpips += lpips(resolved_image, HR_image).item().cpu()
+        running_psnr += psnr(resolved_image, HR_image).item()
+        running_ssim += ssim(resolved_image, HR_image).item()
+        running_lpips += lpips(resolved_image, HR_image).item()
         
         # Accumulate the metrics over iterations
         metrics['psnrs'] += np.array(image_train_metrics['psnrs'])
