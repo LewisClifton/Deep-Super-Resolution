@@ -174,7 +174,7 @@ def main(LR_dir,
               upsample_mode='bilinear').to(device)
 
         # Perform DIP SISR for the current image
-        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=rank)
+        resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=device)
 
         # Accumulate running lpips
         HR_image = HR_image.to(device)
