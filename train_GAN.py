@@ -6,8 +6,7 @@ from datetime import datetime
 import time
 from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
-from torchvision.models import VGG19_Weights
-import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 from models.GAN.discriminator import Discriminator
 from models.GAN.generator import Generator

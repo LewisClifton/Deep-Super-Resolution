@@ -6,22 +6,16 @@ from PIL import Image
 import numpy as np
 from datetime import datetime
 import os
-import torch.distributed as dist
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data import DataLoader
 
-# Setup for multi-gpu loading
-def setup_gpu(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-# Get the dataloaders
-def get_data_loader(dataset, rank, world_size, batch_size=32):
-    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=False, drop_last=False)
-    dataloader = DataLoader(dataset, batch_size=batch_size, pin_memory=False, num_workers=0, drop_last=False, shuffle=False, sampler=sampler)
-    
-    return dataloader
+def save_model(model, name, out_dir):
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    path = os.path.join(out_dir, f'{name}.pth')
+    torch.save(model.state_dict(), path)
+
+    print(f'Model saved to {path}')
 
 def save_image(image, image_name, out_dir):
 
