@@ -135,7 +135,7 @@ class GANDIV2KDataset(Dataset):
         HR_top = LR_top * self.scale_factor 
         HR_bottom = LR_bottom * self.scale_factor 
 
-        # Extract LR and LR patches
+        # Extract LR and LR patch
         LR_patch = LR_image[:, LR_top:LR_bottom, LR_left:LR_right]
         HR_patch = HR_image[:, HR_top:HR_bottom, HR_left:HR_right]
 

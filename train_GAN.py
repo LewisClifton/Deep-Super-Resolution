@@ -18,7 +18,7 @@ from utils.common import *
 torch.backends.cudnn.enabled = True
 
 
-def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device):
+def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, device):
     # Train GAN to perform SISR
 
     # Get loss functions
@@ -31,8 +31,8 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
     lpips = LPIPS(net_type='alex').to(device)
     
     # Get optimisers for both models
-    optim_G = torch.optim.Adam(gan_G.parameters(), lr=1e-4)
-    optim_D = torch.optim.Adam(gan_D.parameters(), lr=1e-4)
+    optim_G = torch.optim.Adam(gan_G.parameters(), lr=lr)
+    optim_D = torch.optim.Adam(gan_D.parameters(), lr=lr)
     
     def do_epoch(LR_patches, HR_patches):
 
@@ -130,7 +130,7 @@ def GAN_ISR_train(gan_G, gan_D, train_loader, num_epoch, train_log_freq, device)
         'Final Discriminator loss' : iteration_losses_G[-1]
     }
 
-    return gan_G, train_metrics
+    return gan_G, gan_D, train_metrics
 
 
 def main(LR_dir, 
@@ -139,9 +139,11 @@ def main(LR_dir,
          factor, 
          num_images, 
          num_epoch,
+         lr,
          LR_patch_size,
          HR_patch_size,
          train_log_freq,
+         pre_trained_model_path,
          device):
 
     # Get generator and wrap with DDP
@@ -149,6 +151,10 @@ def main(LR_dir,
 
     # Get discriminator and wrap with DDP
     gan_D = Discriminator(HR_patch_size).to(device)
+
+    if pre_trained_model_path:
+        gan_G = torch.load(os.path.join(pre_trained_model_path, 'pre_trained_srgan_G.pth'), weights_only=True)
+        gan_D = torch.load(os.path.join(pre_trained_model_path, 'pre_trained_srgan_D.pth'), weights_only=True)
     
     # Set Generator and Discriminator to train mode
     gan_G.train(); gan_D.train()
@@ -164,8 +170,20 @@ def main(LR_dir,
 
     start_time = time.time()
 
+    # Pre-train
+    pre_trained_G, pre_trained_D, train_metrics = GAN_ISR_train(gan_G, gan_D, lr, data_loader, num_epoch, train_log_freq, device=device)
+
+    # Save metrics log and model
+    save_log(out_dir, **train_metrics)
+    save_model(pre_trained_G, 'pre_trained_srgan_G', out_dir)
+    save_model(pre_trained_D, 'pre_trained_srgan_D', out_dir)
+
     # Train
-    trained_model, train_metrics = GAN_ISR_train(gan_G, gan_D, data_loader, num_epoch, train_log_freq, device=device)
+    trained_model, _, train_metrics = GAN_ISR_train(gan_G, gan_D, lr, data_loader, num_epoch, train_log_freq, device=device)
+
+    # Save metrics log and model
+    save_log(out_dir, **train_metrics)
+    save_model(trained_model, 'fine_tuned_srgan_', out_dir)
 
     # Get run time
     runtime = time.time() - start_time
@@ -175,10 +193,6 @@ def main(LR_dir,
     # Final train metric for the log
     train_metrics["Number of images used for training"] = num_images
     train_metrics["Train runtime"] = runtime
-
-    # Save metrics log and model
-    save_log(out_dir, **train_metrics)
-    save_model(trained_model, out_dir)
 
     dist.barrier()
     if dist.is_initialized():
@@ -192,8 +206,11 @@ if __name__ == '__main__':
     # Get command line arguments for program behaviour
     parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
-    parser.add_argument('--num_epochs', type=int, help='Number of epochs when training', default=1)
-    parser.add_argument('--num_gpus', type=int, help='Number of gpus to run models with', default=2)
+    parser.add_argument('--pre_train_epochs', type=int, help='Number of epochs when pre-training', default=8000)
+    parser.add_argument('--fine_tune_epochs', type=int, help='Number of epochs when fine tuning', default=4000)
+    parser.add_argument('--pre_train_learning_rate', type=float, help='Learning rate during pre-training', default=1e-4)
+    parser.add_argument('--pre_train_learning_rate', type=float, help='Learning rate during fine tuning', default=1e-5)
+    parser.add_argument('--pre_trained_models_path', type=str, help='Path to model pre-trained model discriminator and generator (avoids pre-training again)')
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training', default=-1)
     args = parser.parse_args()
@@ -239,15 +256,23 @@ if __name__ == '__main__':
     HR_patch_size = (96,96)
     LR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
 
+    # Learning rate
+    lr = args.learning_rate
+
+    # Pre-trained model path
+    pre_trained_model_path = args.pre_trained_model_path
+
     # Initialise gpus
     device = 0
-    main(LR_dir,
-        HR_dir,
-        out_dir,
-        factor,
-        num_images,
-        num_epoch,
-        LR_patch_size,
-        HR_patch_size,
-        train_log_freq,
-        device)
+    main(LR_dir, 
+         HR_dir, 
+         out_dir, 
+         factor, 
+         num_images, 
+         num_epoch,
+         lr,
+         LR_patch_size,
+         HR_patch_size,
+         train_log_freq,
+         pre_trained_model_path,
+         device)

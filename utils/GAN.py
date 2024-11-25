@@ -120,11 +120,11 @@ class PerceptualLoss(nn.Module):
 
         return perceptual_loss
     
-def save_model(model, out_dir):
+def save_model(model, name, out_dir):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    path = os.path.join(out_dir, f'srgan.pth')
+    path = os.path.join(out_dir, f'{name}.pth')
     torch.save(model.state_dict(), path)
 
     print(f'Model saved to {path}')

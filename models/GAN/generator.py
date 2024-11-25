@@ -20,7 +20,7 @@ class ResidualBlock(nn.Module):
         z = self.conv2(z)
         z = self.bn2(z)
 
-        x = x + z # Element-wise sum layer
+        x = x + z 
 
         return x
 
@@ -52,10 +52,8 @@ class Generator(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64 , kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(num_features=64)
 
-        if factor == 8:
-            pixel_shuffles = 3
-        elif factor == 16:
-            pixel_shuffles = 4
+        pixel_shuffles = 3
+
         self.pixel_shuffle_blocks = nn.Sequential(*[PixelShuffleBlock(in_channels=64) for _ in range(pixel_shuffles)])
 
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=3 , kernel_size=9, stride=1, padding=4)
