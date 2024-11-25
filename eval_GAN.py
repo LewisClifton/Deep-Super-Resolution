@@ -36,36 +36,33 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         print(f'Starting GAN evaluation..')
         print()
 
+    # Perform SISR using the generator for batch_size many images
+    for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
 
-    with torch.no_grad():
+        HR_image = HR_image.to(device)
+        LR_image = LR_image.to(device)
+        image_name = image_name[0] 
 
-        # Perform SISR using the generator for batch_size many images
-        for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
+        print(f"Starting on {image_name}.")
 
-            HR_image = HR_image.to(device)
-            LR_image = LR_image.to(device)
-            image_name = image_name[0] 
+        # Perform DIP SISR for the current image
+        resolved_image = gan_G.module(LR_image)
 
-            print(f"Starting on {image_name}.")
+        # Get PSNR, SSIM, LPIPS metrics
+        running_psnr += psnr(resolved_image, HR_image).item()
+        running_ssim += ssim(resolved_image, HR_image).item()
+        running_lpips += lpips(resolved_image, HR_image).item()
 
-            # Perform DIP SISR for the current image
-            resolved_image = gan_G.module(LR_image)
+        print(f"Done evaluating over {image_name}.")
 
-            # Get PSNR, SSIM, LPIPS metrics
-            running_psnr += psnr(resolved_image, HR_image).item()
-            running_ssim += ssim(resolved_image, HR_image).item()
-            running_lpips += lpips(resolved_image, HR_image).item()
+        resolved_image = torch_to_np(resolved_image)
+        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+        save_image(resolved_image, image_name, out_dir)
+        print()
 
-            print(f"Done evaluating over {image_name}.")
-
-            resolved_image = torch_to_np(resolved_image)
-            resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-            save_image(resolved_image, image_name, out_dir)
-            print()
-
-            # Delete everything to ensure gpu memory is low
-            del LR_image, HR_image
-            del resolved_image
+        # Delete everything to ensure gpu memory is low
+        del LR_image, HR_image
+        del resolved_image
 
     # Calculate metric averages
     eval_metrics = {
