@@ -344,4 +344,5 @@ if __name__ == '__main__':
         save_output,
         train_log_freq,
         noise_type,
+        downsample,
         0)
