@@ -69,34 +69,28 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     
     return eval_metrics
 
-def main(rank,
-         world_size, 
-         LR_dir, 
+def main(LR_dir, 
          HR_dir, 
          out_dir, 
          model_path, 
          factor, 
          num_images, 
          downsample, 
-         noise_type):
-    
-    if rank == 0:
-        print(f'Starting GAN evaluation..')
-        print()
+         noise_type,
+         device):
 
-    # setup the process groups
-    setup_gpu(rank, world_size)
+    print(f'Starting GAN evaluation..')
+    print()
 
     # Get generator
-    gan_G = Generator(factor=factor).to(rank)
+    gan_G = Generator(factor=factor).to(device)
     gan_G = load_model(gan_G, model_path)
-    gan_G = DDP(gan_G, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
     dataset = GANDIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images, noise_type=noise_type, downsample=downsample)
     batch_size = 1 # set batch size to 1 when evaluating as the images can be very large
 
     # Create a dataloader           
-    data_loader = get_data_loader(dataset, rank, world_size, batch_size)
+    data_loader = DataLoader(dataset, batch_size=batch_size)
 
     # Set Generator to evaluation mode
     gan_G.eval()
@@ -105,46 +99,20 @@ def main(rank,
     
     # Evaluate
     
-    eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
+    eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=device)
 
     # Get run time
-    eval_metrics['runtime'] = time.time() - start_time
+    runtime = time.time() - start_time
+    runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
 
-    # Wait for all gpus to get to this point
-    dist.barrier()
+    print(f'Done evaluating for all {num_images} images.')
 
-    # Send all the gpu node metrics back to the main gpu
-    torch.cuda.set_device(rank)
-    eval_metrics_gpus = [None for _ in range(world_size)]
-    dist.all_gather_object(eval_metrics_gpus, eval_metrics)
+    # Final evalutaion metric for the log
+    eval_metrics["Number of images evaluated over"] = num_images
+    eval_metrics["Eval runtime"] = runtime
 
-    if rank == 0:
-        print(f'Done evaluating for all {num_images} images.')
-
-        # Get runtime
-        runtime = np.max([gpu_metrics['runtime'] for gpu_metrics in eval_metrics_gpus])
-        runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
-
-        # Average the metrics over each GPU output
-        avg_psnr = np.mean([gpu_metrics['avg_psnr'] for gpu_metrics in eval_metrics_gpus])
-        avg_ssim = np.mean([gpu_metrics['avg_ssim'] for gpu_metrics in eval_metrics_gpus])
-        avg_lpips = np.mean([gpu_metrics['avg_lpips'] for gpu_metrics in eval_metrics_gpus])
-
-        # Final evalutaion metric for the log
-        final_eval_metrics = {
-            "Number of images evaluated over" : num_images,
-            "Eval runtime" : runtime,
-            "Average PSNR": avg_psnr,
-            "Average SSIM": avg_ssim,
-            "Average LPIPS": avg_lpips,
-        }
-
-        # Save metrics log
-        save_log(out_dir, **final_eval_metrics)
-
-    dist.barrier()
-    if dist.is_initialized():
-            dist.destroy_process_group()
+    # Save metrics log
+    save_log(out_dir, **eval_metrics)
 
 
 # Setup all the parameters for the GAN script
@@ -156,7 +124,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for evaluation log/saved images", required=True)
     parser.add_argument('--model_path', type=str, help="Path of model to evaluate", required=True)
-    parser.add_argument('--num_gpus', type=int, help='Number of gpus to run models with', default=2)
     parser.add_argument('--num_images', type=int, help='Number of images to use for evaluation', default=-1)
     parser.add_argument('--save_images', type=bool, help='Whether to save super-resolved images', default=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating. "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
@@ -232,17 +199,11 @@ if __name__ == '__main__':
             print(f'Noise type {args.noise_type} not supported. Use either --noise_type=gauss or --noise_type=saltpepper')
             sys.exit(1)
 
-    # Initialise gpus
-    world_size = args.num_gpus 
-    mp.spawn(
-        main,
-        args=(world_size,
-              LR_dir,
-              HR_dir,
-              out_dir,
-              model_path,
-              factor,
-              num_images,
-              downsample,
-              noise_type),
-        nprocs=world_size)
+    main(LR_dir,
+        HR_dir,
+        out_dir,
+        model_path,
+        factor,
+        num_images,
+        downsample,
+        noise_type)

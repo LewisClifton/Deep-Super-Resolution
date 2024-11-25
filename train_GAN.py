@@ -191,7 +191,7 @@ def main(LR_dir,
 
     # Get run time
     runtime = time.time() - start_time
-
+    runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
 
     # Final train metric for the log
     train_metrics["Number of images used for training"] = num_images
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     parser.add_argument('--pre_train_epochs', type=int, help='Number of epochs when pre-training', default=8000)
     parser.add_argument('--fine_tune_epochs', type=int, help='Number of epochs when fine tuning', default=4000)
     parser.add_argument('--pre_train_learning_rate', type=float, help='Learning rate during pre-training', default=1e-4)
-    parser.add_argument('--pre_train_learning_rate', type=float, help='Learning rate during fine tuning', default=1e-5)
+    parser.add_argument('--fine_tune_learning_rate', type=float, help='Learning rate during fine tuning', default=1e-5)
     parser.add_argument('--pre_trained_models_path', type=str, help='Path to model pre-trained model discriminator and generator (avoids pre-training again)')
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training', default=-1)
