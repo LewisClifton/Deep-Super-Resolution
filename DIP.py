@@ -226,7 +226,7 @@ def main(LR_dir,
 
 
     # Save metrics log and model
-    save_log(out_dir, **{metrics, noise_type})
+    save_log(out_dir, **metrics, **noise_type)
 
 
 if __name__ == '__main__':
