@@ -32,10 +32,6 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     ssim = SSIM(data_range=1.).to(device)
     lpips = LPIPS(net_type='alex').to(device)
 
-    if device == 0:
-        print(f'Starting GAN evaluation..')
-        print()
-
     # Perform SISR using the generator for batch_size many images
     for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
 
@@ -84,6 +80,10 @@ def main(rank,
          downsample, 
          noise_type):
     
+    if rank == 0:
+        print(f'Starting GAN evaluation..')
+        print()
+
     # setup the process groups
     setup_gpu(rank, world_size)
 
