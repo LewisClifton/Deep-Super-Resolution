@@ -200,9 +200,6 @@ def main(LR_dir,
     train_metrics["Number of images used for training"] = num_images
     train_metrics["Train runtime"] = runtime
 
-    dist.barrier()
-    if dist.is_initialized():
-            dist.destroy_process_group()
 
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
