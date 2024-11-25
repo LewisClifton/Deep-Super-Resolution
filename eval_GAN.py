@@ -104,7 +104,8 @@ def main(rank,
     start_time = time.time()
     
     # Evaluate
-    eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
+    with torch.no_grad():
+        eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
 
     # Get run time
     eval_metrics['runtime'] = time.time() - start_time
