@@ -198,11 +198,10 @@ def main(rank,
         metrics['ssims'] += np.array(image_train_metrics['ssims'])
         metrics['lpipss'] += np.array(image_train_metrics['lpipss'])
 
-        if rank == 0:
+        # Save resolved image
+        if save_output and rank == 0:
             print("Done.")
 
-        # Save resolved image
-        if save_output:
             resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, image_name, out_dir)
@@ -235,9 +234,9 @@ def main(rank,
         runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
 
         # Calculate mean across GPUs for each epoch
-        avg_psnrs = [gpu_metrics['avg_psnrs'] for gpu_metrics in metrics_gpus]
-        avg_ssims = [gpu_metrics['avg_ssims'] for gpu_metrics in metrics_gpus]
-        avg_lpipss = [gpu_metrics['avg_lpipss'] for gpu_metrics in metrics_gpus]
+        avg_psnrs = [gpu_metrics['psnrs'] for gpu_metrics in metrics_gpus]
+        avg_ssims = [gpu_metrics['ssims'] for gpu_metrics in metrics_gpus]
+        avg_lpipss = [gpu_metrics['lpipss'] for gpu_metrics in metrics_gpus]
         avg_psnrs = np.mean(np.vstack(avg_psnrs), axis=0)
         avg_ssims = np.mean(np.vstack(avg_ssims), axis=0)
         avg_lpipss = np.mean(np.vstack(avg_lpipss), axis=0)
