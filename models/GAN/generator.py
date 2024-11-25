@@ -58,7 +58,7 @@ class Generator(nn.Module):
 
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=3 , kernel_size=9, stride=1, padding=4)
 
-        self.out = nn.Sigmoid()
+        self.out = nn.Tanh()
 
     def forward(self, x):
 

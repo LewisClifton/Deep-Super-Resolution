@@ -30,7 +30,7 @@ def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, dev
     # Get metrics
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.0).to(device)
-    lpips = LPIPS(net_type='alex', normalize=True).to(device)
+    lpips = LPIPS(net_type='alex').to(device)
     
     # Get optimisers for both models
     optim_G = torch.optim.Adam(gan_G.parameters(), lr=lr)
