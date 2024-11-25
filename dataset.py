@@ -21,17 +21,6 @@ def get_image_pair(dataset_config, idx):
     LR_image = downsample(LR_image, 2)
     HR_image = downsample(HR_image, 2)
 
-    # Apply further downsampling if investigating greater scale factors
-    if dataset_config.downsample:
-        LR_image = downsample(LR_image)
-
-    # Apply noise degradation if necessary:
-    if dataset_config.noise_type is not None:
-        if dataset_config.noise_type['type'] == 'SaltAndPepper':
-            LR_image = add_salt_pepper_noise(LR_image, s=dataset_config.noise_type['s'], p=dataset_config.noise_type['p'])
-        elif dataset_config.noise_type['type'] == 'Gaussian':
-            LR_image = add_gaussian_noise(LR_image, std=dataset_config.noise_type['std'])
-
     # Get the expected dimensions of the HR image given the LR image shape and the scale factor
     width_LR, height_LR = LR_image.size
     width_HR = dataset_config.scale_factor * width_LR
@@ -49,6 +38,21 @@ def get_image_pair(dataset_config, idx):
         LR_image = LR_image.resize((width_LR, height_LR), Image.BICUBIC)
     else:
         HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
+
+
+    LR_image = np.array(LR_image)
+    HR_image = np.array(HR_image)
+
+    # Apply further downsampling if investigating greater scale factors
+    if dataset_config.downsample:
+        LR_image = downsample(LR_image)
+
+    # Apply noise degradation if necessary:
+    if dataset_config.noise_type is not None:
+        if dataset_config.noise_type['type'] == 'SaltAndPepper':
+            LR_image = add_salt_pepper_noise(LR_image, s=dataset_config.noise_type['s'], p=dataset_config.noise_type['p'])
+        elif dataset_config.noise_type['type'] == 'Gaussian':
+            LR_image = add_gaussian_noise(LR_image, std=dataset_config.noise_type['std'])
 
     # Convert to tensor
     LR_image = transforms.ToTensor()(LR_image)
