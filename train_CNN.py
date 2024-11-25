@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # Get command line arguments for program behaviour
     parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
-    parser.add_argument('--num_epochs', type=int, help='Number of epochs when pre-training', default=8000)
+    parser.add_argument('--num_epochs', type=int, help='Number of epochs when pre-training', default=400)
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training', default=-1)
     parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating')
