@@ -171,7 +171,9 @@ def main(LR_dir,
     start_time = time.time()
 
     # Pre-train
+    print("Beginnning pre-training stage..")
     pre_trained_G, pre_trained_D, train_metrics = GAN_ISR_train(gan_G, gan_D, lr, data_loader, num_epoch, train_log_freq, device=device)
+    print("Done pre-training.")
 
     # Save metrics log and model
     save_log(out_dir, **train_metrics)
@@ -179,7 +181,9 @@ def main(LR_dir,
     save_model(pre_trained_D, 'pre_trained_srgan_D', out_dir)
 
     # Train
+    print('Beginning fine-tuning stage')
     trained_model, _, train_metrics = GAN_ISR_train(gan_G, gan_D, lr, data_loader, num_epoch, train_log_freq, device=device)
+    print('Done fine-tuning stage.')
 
     # Save metrics log and model
     save_log(out_dir, **train_metrics)
@@ -188,7 +192,6 @@ def main(LR_dir,
     # Get run time
     runtime = time.time() - start_time
 
-    print('Done training')
 
     # Final train metric for the log
     train_metrics["Number of images used for training"] = num_images
