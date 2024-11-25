@@ -23,23 +23,25 @@ def get_data_loader(dataset, rank, world_size, batch_size=32):
     
     return dataloader
 
-def save_image(image, image_name, output_dir):
+def save_image(image, image_name, out_dir):
 
     # image = torch_to_np(image)
     image_pil = Image.fromarray(image)
 
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    out_dir = os.path.join(out_dir, 'images/')
 
-    path = os.path.join(output_dir, f'images/{image_name}_resolved.png')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    path = os.path.join(out_dir, f'{image_name}_resolved.png')
 
     image_pil.save(path)
 
     print(f"Saved to {path}")
 
-def save_log(output_dir, **kwargs):
+def save_log(out_dir, **kwargs):
 
-    path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}_log.txt')
+    path = os.path.join(out_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}_log.txt')
     with open(path, 'w') as f:        
         if kwargs:
             for key, value in kwargs.items():
@@ -47,11 +49,11 @@ def save_log(output_dir, **kwargs):
 
     print(f"Log file saved to {path}")
 
-def save_model(model, output_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def save_model(model, out_dir):
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
-    path = os.path.join(output_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}.pth')
+    path = os.path.join(out_dir, f'{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}.pth')
     torch.save(model.state_dict(), path)
 
     print(f'Model saved to {path}')

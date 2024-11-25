@@ -167,7 +167,8 @@ def main(rank,
     start_time = time.time()
 
     # Perform SISR using DIP for num_images many images
-    for idx, (LR_image, HR_image, image_name) in enumerate(data_loader):   
+    for idx, (LR_image, HR_image, image_name) in enumerate(data_loader): 
+        image_name = image_name[0]  
 
         if rank == 0:
             print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
