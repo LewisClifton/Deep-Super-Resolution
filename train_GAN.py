@@ -138,8 +138,10 @@ def main(LR_dir,
          out_dir, 
          factor, 
          num_images, 
-         num_epoch,
-         lr,
+         pre_train_epochs,
+         fine_tune_epochs,
+         pre_train_lr,
+         fine_tune_lr,
          LR_patch_size,
          HR_patch_size,
          train_log_freq,
@@ -152,7 +154,7 @@ def main(LR_dir,
     # Get discriminator and wrap with DDP
     gan_D = Discriminator(HR_patch_size).to(device)
 
-    if pre_trained_model_path:
+    if pre_trained_model_path is not None:
         gan_G = torch.load(os.path.join(pre_trained_model_path, 'pre_trained_srgan_G.pth'), weights_only=True)
         gan_D = torch.load(os.path.join(pre_trained_model_path, 'pre_trained_srgan_D.pth'), weights_only=True)
     
@@ -171,18 +173,19 @@ def main(LR_dir,
     start_time = time.time()
 
     # Pre-train
-    print("Beginnning pre-training stage..")
-    pre_trained_G, pre_trained_D, train_metrics = GAN_ISR_train(gan_G, gan_D, lr, data_loader, num_epoch, train_log_freq, device=device)
-    print("Done pre-training.")
+    if pre_trained_model_path is None:
+        print("Beginnning pre-training stage..")
+        pre_trained_G, pre_trained_D, train_metrics = GAN_ISR_train(gan_G, gan_D, pre_train_lr, data_loader, pre_train_epochs, train_log_freq, device=device)
+        print("Done pre-training.")
 
-    # Save metrics log and model
-    save_log(out_dir, **train_metrics)
-    save_model(pre_trained_G, 'pre_trained_srgan_G', out_dir)
-    save_model(pre_trained_D, 'pre_trained_srgan_D', out_dir)
+        # Save metrics log and model
+        save_log(out_dir, **train_metrics)
+        save_model(pre_trained_G, 'pre_trained_srgan_G', out_dir)
+        save_model(pre_trained_D, 'pre_trained_srgan_D', out_dir)
 
     # Train
     print('Beginning fine-tuning stage')
-    trained_model, _, train_metrics = GAN_ISR_train(gan_G, gan_D, lr, data_loader, num_epoch, train_log_freq, device=device)
+    trained_model, _, train_metrics = GAN_ISR_train(gan_G, gan_D, fine_tune_lr, data_loader, fine_tune_epochs, train_log_freq, device=device)
     print('Done fine-tuning stage.')
 
     # Save metrics log and model
@@ -239,8 +242,9 @@ if __name__ == '__main__':
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    # Training epochs
-    num_epoch = args.num_epochs
+    # Epochs
+    pre_train_epochs = args.pre_train_epochs
+    fine_tune_epochs = args.fine_tune_epochs
 
     # How many epochs between saving metrics when training
     train_log_freq = args.train_log_freq
@@ -260,7 +264,8 @@ if __name__ == '__main__':
     LR_patch_size = (int(HR_patch_size[0] / factor), int(HR_patch_size[1] / factor))
 
     # Learning rate
-    lr = args.learning_rate
+    pre_train_lr = args.pre_train_learning_rate
+    fine_tune_lr = args.fine_tune_learning_rate
 
     # Pre-trained model path
     pre_trained_model_path = args.pre_trained_model_path
@@ -272,8 +277,10 @@ if __name__ == '__main__':
          out_dir, 
          factor, 
          num_images, 
-         num_epoch,
-         lr,
+         pre_train_epochs,
+         fine_tune_epochs,
+         pre_train_lr,
+         fine_tune_lr,
          LR_patch_size,
          HR_patch_size,
          train_log_freq,
