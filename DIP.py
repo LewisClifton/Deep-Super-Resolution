@@ -188,9 +188,9 @@ def main(rank,
         HR_image = HR_image.to(rank)
         
         # Accumulate running psnr, ssim, lpips
-        running_psnr += psnr(resolved_image, HR_image).cpu()
-        running_ssim += ssim(resolved_image, HR_image).cpu()
-        running_lpips += lpips(resolved_image, HR_image).cpu()
+        running_psnr += psnr(resolved_image, HR_image).item().cpu()
+        running_ssim += ssim(resolved_image, HR_image).item().cpu()
+        running_lpips += lpips(resolved_image, HR_image).item().cpu()
         
         # Accumulate the metrics over iterations
         metrics['psnrs'] += np.array(image_train_metrics['psnrs'])
