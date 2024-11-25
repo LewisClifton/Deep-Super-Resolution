@@ -154,9 +154,9 @@ def main(rank,
 
     # Initialise performance over training metrics
     metrics = {
-        'psnrs' : np.zeros(shape=(training_config['num_iter'])),
-        'ssims' : np.zeros(shape=(training_config['num_iter'])),
-        'lpipss' : np.zeros(shape=(training_config['num_iter']))
+        'psnrs' : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
+        'ssims' : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
+        'lpipss' : np.zeros(shape=(training_config['num_iter'] // train_log_freq))
     }
 
     # Get metrics models
