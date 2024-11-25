@@ -49,9 +49,9 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         resolved_image = gan_G(LR_image)
 
         # Get PSNR, SSIM, LPIPS metrics
-        running_psnr += psnr(resolved_image, HR_image)
-        running_ssim += ssim(resolved_image, HR_image)
-        running_lpips += lpips(resolved_image, HR_image)
+        running_psnr += psnr(resolved_image, HR_image).item()
+        running_ssim += ssim(resolved_image, HR_image).item()
+        running_lpips += lpips(resolved_image, HR_image).item()
 
         if device == 0:
             print("Done.")
