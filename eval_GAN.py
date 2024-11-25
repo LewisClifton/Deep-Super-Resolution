@@ -74,7 +74,6 @@ def main(LR_dir,
          model_path, 
          factor, 
          num_images, 
-         downsample, 
          noise_type,
          device):
 
@@ -130,7 +129,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_images', type=bool, help='Whether to save super-resolved images', default=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating. "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating. In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
-    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating')
+    parser.add_argument('--factor', type=bool, help='If evaluating a 8x GAN or 16x', default=8)
     args = parser.parse_args()
 
     data_dir = args.data_dir
@@ -148,11 +147,13 @@ if __name__ == '__main__':
     LR_dir = os.path.join(data_dir, 'DIV2K_valid_LR_x8/')
     HR_dir = os.path.join(data_dir, 'DIV2K_valid_HR/')
 
+    # Super resolution scale factor
+    factor = args.factor
+
     # Output directory
     date = datetime.now()
-    out_dir = os.path.join(out_dir, f'out/GAN/{date.strftime("%Y_%m_%d_%p%I_%M")}')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    out_dir = os.path.join(out_dir, f'out/GANx{factor}/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    os.makedirs(out_dir, exist_ok=True)
 
     # Path of the trained model
     model_path = args.model_path
@@ -164,13 +165,6 @@ if __name__ == '__main__':
         print(f'Please provide a valid number of images to use with --num_images=-1 for entire dataset or --num_images > 0')
         sys.exit(1)
 
-    # Super resolution scale factor
-    factor = 8
-    
-    # Degredation
-    downsample = args.downsample
-    if downsample:
-        factor *= 2
 
     # Noise
     noise_type = args.noise_type 

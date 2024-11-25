@@ -39,14 +39,13 @@ def get_image_pair(dataset_config, idx):
         LR_image = LR_image.resize((width_LR, height_LR), Image.BICUBIC)
     else:
         HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
-
-
-    LR_image = np.array(LR_image)
-    HR_image = np.array(HR_image)
-
+    
     # Apply further downsampling if investigating greater scale factors
     if dataset_config.downsample:
         LR_image = downsample(LR_image)
+
+    LR_image = np.array(LR_image)
+    HR_image = np.array(HR_image)
 
     # Apply noise degradation if necessary:
     if dataset_config.noise_type is not None:
