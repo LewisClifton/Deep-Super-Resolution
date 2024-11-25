@@ -150,6 +150,7 @@ if __name__ == '__main__':
     # Get command line arguments for program behaviour
     parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for evaluation log/saved images", required=True)
+    parser.add_argument('--model_path', type=str, help="Path of model to evaluate")
     parser.add_argument('--num_gpus', type=int, help='Number of gpus to run models with', default=2)
     parser.add_argument('--num_images', type=int, help='Number of images to use for evaluation', default=-1)
     parser.add_argument('--save_images', type=bool, help='Whether to save super-resolved images', default=False)
