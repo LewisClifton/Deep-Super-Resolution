@@ -198,11 +198,11 @@ def main(LR_dir,
             save_image(resolved_image, f'{image_name}_resolved', out_dir)
 
             LR_image = torch_to_np(LR_image)
-            LR_image = (LR_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            #LR_image = (LR_image.transpose(1, 2, 0)).astype(np.uint8)
             save_image(LR_image, f'{image_name}_LR', out_dir)
 
             HR_image = torch_to_np(HR_image)
-            HR_image = (HR_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            #HR_image = (HR_image.transpose(1, 2, 0)).astype(np.uint8)
             save_image(HR_image, f'{image_name}_HR', out_dir)
 
         del LR_image, HR_image, resolved_image, net
