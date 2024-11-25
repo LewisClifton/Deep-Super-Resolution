@@ -110,7 +110,7 @@ def main(rank,
     eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
 
     # Get run time
-    eval_metrics['Eval runtime'] = time.time() - start_time
+    eval_metrics['runtime'] = time.time() - start_time
 
     # Wait for all gpus to get to this point
     dist.barrier()
@@ -124,7 +124,7 @@ def main(rank,
         print('Done evaluating')
 
         # Get runtime
-        runtime = np.max([gpu_metrics['Eval runtime'] for gpu_metrics in eval_metrics_gpus])
+        runtime = np.max([gpu_metrics['runtime'] for gpu_metrics in eval_metrics_gpus])
         runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
 
         # Average the metrics over each GPU output
