@@ -22,6 +22,10 @@ def get_image_pair(dataset_config, idx):
     LR_image = downsample(LR_image, 2)
     HR_image = downsample(HR_image, 2)
 
+    # Apply further downsampling if investigating greater scale factors
+    if dataset_config.downsample:
+        LR_image = downsample(LR_image)
+
     # Get the expected dimensions of the HR image given the LR image shape and the scale factor
     width_LR, height_LR = LR_image.size
     width_HR = dataset_config.scale_factor * width_LR
@@ -39,10 +43,7 @@ def get_image_pair(dataset_config, idx):
         LR_image = LR_image.resize((width_LR, height_LR), Image.BICUBIC)
     else:
         HR_image = HR_image.resize((width_HR, height_HR), Image.BICUBIC)
-    
-    # Apply further downsampling if investigating greater scale factors
-    if dataset_config.downsample:
-        LR_image = downsample(LR_image)
+
 
     LR_image = np.array(LR_image)
     HR_image = np.array(HR_image)
