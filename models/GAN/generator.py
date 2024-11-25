@@ -52,7 +52,10 @@ class Generator(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64 , kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(num_features=64)
 
-        pixel_shuffles = 3
+        if factor == 8:
+            pixel_shuffles = 3
+        elif factor == 16:
+            pixel_shuffles = 4
 
         self.pixel_shuffle_blocks = nn.Sequential(*[PixelShuffleBlock(in_channels=64) for _ in range(pixel_shuffles)])
 
