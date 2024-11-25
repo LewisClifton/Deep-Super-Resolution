@@ -36,33 +36,36 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         print(f'Starting GAN evaluation..')
         print()
 
-    # Perform SISR using the generator for batch_size many images
-    for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
 
-        HR_image = HR_image.to(device)
-        LR_image = LR_image.to(device)
-        image_name = image_name[0] 
+    with torch.no_grad():
 
-        print(f"Starting on {image_name}.")
+        # Perform SISR using the generator for batch_size many images
+        for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
 
-        # Perform DIP SISR for the current image
-        resolved_image = gan_G.module(LR_image)
+            HR_image = HR_image.to(device)
+            LR_image = LR_image.to(device)
+            image_name = image_name[0] 
 
-        # Get PSNR, SSIM, LPIPS metrics
-        running_psnr += psnr(resolved_image, HR_image).item()
-        running_ssim += ssim(resolved_image, HR_image).item()
-        running_lpips += lpips(resolved_image, HR_image).item()
+            print(f"Starting on {image_name}.")
 
-        print(f"Done evaluating over {image_name}.")
+            # Perform DIP SISR for the current image
+            resolved_image = gan_G.module(LR_image)
 
-        resolved_image = torch_to_np(resolved_image)
-        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-        save_image(resolved_image, image_name, out_dir)
-        print()
+            # Get PSNR, SSIM, LPIPS metrics
+            running_psnr += psnr(resolved_image, HR_image).item()
+            running_ssim += ssim(resolved_image, HR_image).item()
+            running_lpips += lpips(resolved_image, HR_image).item()
 
-        # Delete everything to ensure gpu memory is low
-        del LR_image, HR_image
-        del resolved_image
+            print(f"Done evaluating over {image_name}.")
+
+            resolved_image = torch_to_np(resolved_image)
+            resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            save_image(resolved_image, image_name, out_dir)
+            print()
+
+            # Delete everything to ensure gpu memory is low
+            del LR_image, HR_image
+            del resolved_image
 
     # Calculate metric averages
     eval_metrics = {
@@ -99,7 +102,7 @@ def main(rank,
     data_loader = get_data_loader(dataset, rank, world_size, batch_size)
 
     # Set Generator to evaluation mode
-    gan_G.module.eval()
+    gan_G.eval()
 
     start_time = time.time()
     
