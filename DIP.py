@@ -132,10 +132,12 @@ def main(LR_dir,
          training_config, 
          save_output,
          train_log_freq,
+         noise_type,
+         downsample,
          device):
     
     # Load the dataset
-    dataset = DIPDIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images)
+    dataset = DIPDIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images, noise_type=noise_type, downsample=downsample)
 
     print(f"Performing DIP SISR on {num_images} images.")
     print(f"Output directory: {out_dir}")
@@ -224,7 +226,7 @@ def main(LR_dir,
 
 
     # Save metrics log and model
-    save_log(out_dir, **metrics)
+    save_log(out_dir, **{metrics, noise_type})
 
 
 if __name__ == '__main__':
@@ -270,6 +272,7 @@ if __name__ == '__main__':
     
     # Degredation
     downsample = args.downsample
+
     if downsample:
         factor *= 2
 
@@ -335,4 +338,5 @@ if __name__ == '__main__':
         training_config,
         save_output,
         train_log_freq,
+        noise_type,
         0)
