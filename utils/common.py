@@ -32,7 +32,7 @@ def save_image(image, image_name, out_dir):
 
     os.makedirs(out_dir, exist_ok=True)
 
-    path = os.path.join(out_dir, f'{image_name}_resolved.png')
+    path = os.path.join(out_dir, f'{image_name}.png')
 
     image_pil.save(path)
 

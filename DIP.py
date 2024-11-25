@@ -154,9 +154,9 @@ def main(rank,
 
     # Initialise performance over training metrics
     metrics = {
-        'psnrs' : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
-        'ssims' : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
-        'lpipss' : np.zeros(shape=(training_config['num_iter'] // train_log_freq))
+        "Average PSNR per epoch" : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
+        "Average SSIM per epoch" : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
+        "Average LPIPS per epoch" : np.zeros(shape=(training_config['num_iter'] // train_log_freq))
     }
 
     # Get metrics models
@@ -194,9 +194,9 @@ def main(rank,
         running_lpips += lpips(resolved_image, HR_image).item()
         
         # Accumulate the metrics over iterations
-        metrics['psnrs'] += np.array(image_train_metrics['psnrs'])
-        metrics['ssims'] += np.array(image_train_metrics['ssims'])
-        metrics['lpipss'] += np.array(image_train_metrics['lpipss'])
+        metrics["Average PSNR per epoch"] += np.array(image_train_metrics['psnrs'])
+        metrics["Average SSIM per epoch"] += np.array(image_train_metrics['ssims'])
+        metrics["Average LPIPS per epoch"] += np.array(image_train_metrics['lpipss'])
 
         # Save resolved image
         if save_output and rank == 0:
@@ -204,7 +204,15 @@ def main(rank,
 
             resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-            save_image(resolved_image, image_name, out_dir)
+            save_image(resolved_image, f'{image_name}_resolved', out_dir)
+
+            LR_image = torch_to_np(LR_image)
+            LR_image = (LR_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            save_image(LR_image, f'{image_name}_LR', out_dir)
+
+            HR_image = torch_to_np(HR_image)
+            HR_image = (HR_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            save_image(HR_image, f'{image_name}_HR', out_dir)
 
         del LR_image, HR_image, resolved_image, net
 
@@ -215,56 +223,20 @@ def main(rank,
     metrics['runtime'] = time.time() - start_time
 
     # Get average final metrics for each resolved image
-    metrics['final_psnr'] = running_psnr / num_images
-    metrics['final_ssim'] = running_ssim / num_images
-    metrics['final_lpips'] = running_lpips / num_images
+    metrics["Average final PSNR"] = running_psnr / num_images
+    metrics['Average final SSIM'] = running_ssim / num_images
+    metrics["Average final LPIPS"] = running_lpips / num_images
+    metrics["Number of images evaluated over"] = num_images
 
-    # Wait for all gpus to get to this point
-    dist.barrier()
+    metrics["Average PSNR per epoch"] /= num_images
+    metrics["Average SSIM per epoch"] /= num_images
+    metrics["Average LPIPS per epoch"] /= num_images
 
-    # Send all the gpu node metrics back to the main gpu
-    torch.cuda.set_device(rank)
-    metrics_gpus = [None for _ in range(world_size)]
-    dist.all_gather_object(metrics_gpus, metrics)
 
-    if rank == 0:
+    # Save metrics log and model
+    save_log(out_dir, **metrics)
 
-        # Get runtime
-        runtime = np.max([gpu_metrics['runtime'] for gpu_metrics in metrics_gpus])
-        runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
 
-        # Calculate mean across GPUs for each epoch
-        avg_psnrs = [gpu_metrics['psnrs'] for gpu_metrics in metrics_gpus]
-        avg_ssims = [gpu_metrics['ssims'] for gpu_metrics in metrics_gpus]
-        avg_lpipss = [gpu_metrics['lpipss'] for gpu_metrics in metrics_gpus]
-        avg_psnrs = np.mean(np.vstack(avg_psnrs), axis=0)
-        avg_ssims = np.mean(np.vstack(avg_ssims), axis=0)
-        avg_lpipss = np.mean(np.vstack(avg_lpipss), axis=0)
-
-        # Calculate average final metrics across GPUs
-        avg_final_psnr = np.mean([gpu_metrics['final_psnr'] for gpu_metrics in metrics_gpus])
-        avg_final_ssim = np.mean([gpu_metrics['final_ssim'] for gpu_metrics in metrics_gpus])
-        avg_final_lpip = np.mean([gpu_metrics['final_lpips'] for gpu_metrics in metrics_gpus])
-
-        # Final train metric for the log
-        final_metrics = {
-            "Number of images evaluated over" : num_images,
-            "Train runtime" : runtime,
-            "Average PSNR per epoch" : avg_psnrs.tolist(),
-            "Average SSIM per epoch" : avg_ssims.tolist(),
-            "Average LPIPS per epoch" : avg_lpipss.tolist(),
-            "Average final PSNR" : avg_final_psnr,
-            'Average final SSIM' : avg_final_ssim,
-            "Average final LPIPS" : avg_final_lpip,
-        }
-
-        # Save metrics log and model
-        save_log(out_dir, **final_metrics)
-
-    dist.barrier()
-    if dist.is_initialized():
-            dist.destroy_process_group()
-    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -273,7 +245,6 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
     parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
     parser.add_argument('--num_iter', type=int, help='Number of iter when training', default=1)
-    parser.add_argument('--num_gpus', type=int, help='Number of gpus to run models with', default=2)
     parser.add_argument('--train_log_freq', type=int, help='How many iterations between logging metrics when training', default=100)
     parser.add_argument('--save_output', type=bool, help='Whether to save super-resolved output', default=False)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training/evaluation', default=1)
@@ -366,17 +337,12 @@ if __name__ == '__main__':
         "reg_noise_std" : reg_noise_std
     }
 
-    # Initialise gpus
-    world_size = args.num_gpus 
-    mp.spawn(
-        main,
-        args=(world_size, 
-              LR_dir, 
-              HR_dir, 
-              out_dir, 
-              factor, 
-              num_images, 
-              training_config,
-              save_output,
-              train_log_freq),
-        nprocs=world_size)
+
+    main(LR_dir, 
+        HR_dir, 
+        out_dir, 
+        factor, 
+        num_images, 
+        training_config,
+        save_output,
+        train_log_freq)
