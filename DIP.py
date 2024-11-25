@@ -272,6 +272,7 @@ if __name__ == '__main__':
     
     # Degredation
     downsample = args.downsample
+    out_dir = os.path.join(out_dir, f'downsample')
 
     if downsample:
         factor *= 2
@@ -304,6 +305,10 @@ if __name__ == '__main__':
         else:
             print(f'Noise type {args.noise_type} not supported. Use either --noise_type=gauss or --noise_type=saltpepper')
             sys.exit(1)
+
+        out_dir = os.path.join(out_dir, f'{noise_type}/{args.noise_param}')
+
+        
 
     # Whether to save output when evaluating
     save_output = args.save_output
