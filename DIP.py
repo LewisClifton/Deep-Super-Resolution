@@ -84,7 +84,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
                 print(f"PSNR: {epoch_psnr}")
                 print(f"SSIM: {epoch_ssim}")
                 print(f'LPIPS: {epoch_lpips}')
-                print(f"Iteration runtime: {time.time() - start_time} seconds")
+                print(f"Iteration runtime: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))} seconds")
             
             del epoch_psnr, epoch_ssim, epoch_lpips
 
@@ -261,10 +261,6 @@ def main(rank,
 
         # Save metrics log and model
         save_log(out_dir, **final_metrics)
-
-    dist.barrier()
-    if dist.is_initialized():
-        dist.destroy_process_group()
 
     
 if __name__ == '__main__':
