@@ -19,7 +19,7 @@ from utils.common import *
 torch.backends.cudnn.enabled = True
 
 
-def GAN_ISR_Batch_eval(gan_G, val_loader, output_dir, batch_size, device):
+def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     # Perform SISR using GAN on a batch of images and evaluate performance
 
     # Initialise performance metrics
@@ -46,19 +46,16 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, output_dir, batch_size, device):
         # Perform DIP SISR for the current image
         resolved_image = gan_G(LR_image)
 
-        # Get LPIPS metrics
-        running_lpips += lpips(resolved_image, HR_image)
-
-        # Get PSNR, SSIM metrics
-        resolved_image = np.clip(torch_to_np(resolved_image), 0, 1)
-        HR_image = np.clip( torch_to_np(HR_image), 0, 1)
+        # Get PSNR, SSIM, LPIPS metrics
         running_psnr += psnr(resolved_image, HR_image)
-        running_ssim += ssim(resolved_image, HR_image, data_range=1, channel_axis=0)
+        running_ssim += ssim(resolved_image, HR_image)
+        running_lpips += lpips(resolved_image, HR_image)
 
         print("Done.")
 
+        resolved_image = torch_to_np(resolved_image)
         resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-        save_image(resolved_image, image_name, output_dir)
+        save_image(resolved_image, image_name, out_dir)
 
         # Delete everything to ensure gpu memory is low
         del LR_image, HR_image
@@ -80,7 +77,7 @@ def main(rank,
          world_size, 
          LR_dir, 
          HR_dir, 
-         output_dir, 
+         out_dir, 
          model_path, 
          factor, 
          num_images, 
@@ -107,7 +104,7 @@ def main(rank,
     start_time = time.time()
     
     # Evaluate
-    eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, output_dir, num_images, device=rank)
+    eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
 
     # Get run time
     eval_metrics['Eval runtime'] = time.time() - start_time
@@ -141,14 +138,8 @@ def main(rank,
             "Average LPIPS": avg_lpips,
         }
 
-        # Output directory
-        date = datetime.now()
-        out_dir = os.path.join(out_dir, f'GAN/eval/{date.strftime("%Y_%m_%d_%p%I_%M")}')
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
         # Save metrics log
-        save_log(output_dir, **final_eval_metrics)
+        save_log(out_dir, **final_eval_metrics)
 
 
 # Setup all the parameters for the GAN script
@@ -169,19 +160,25 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data_dir = args.data_dir
-    output_dir = args.out_dir
+    out_dir = args.out_dir
 
     if not os.path.isdir(data_dir):
         print(f'{data_dir} not found.')
         sys.exit(1)
 
-    if not os.path.isdir(output_dir):
-        print(f'{output_dir} not found.')
+    if not os.path.isdir(out_dir):
+        print(f'{out_dir} not found.')
         sys.exit(1)
 
     # Get dataset
     LR_dir = os.path.join(data_dir, 'DIV2K_validation_LR_x8/')
     HR_dir = os.path.join(data_dir, 'DIV2K_validation_HR/')
+
+    # Output directory
+    date = datetime.now()
+    out_dir = os.path.join(out_dir, f'out/GAN/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # Path of the trained model
     model_path = args.model_path
@@ -237,7 +234,7 @@ if __name__ == '__main__':
         args=(world_size,
               LR_dir,
               HR_dir,
-              output_dir,
+              out_dir,
               model_path,
               factor,
               num_images,

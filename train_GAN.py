@@ -179,16 +179,13 @@ def main(LR_dir,
 
     # Output directory
     date = datetime.now()
-    out_dir = os.path.join(out_dir, f'GAN/trained/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, f'trained/GAN/{date.strftime("%Y_%m_%d_%p%I_%M")}')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
     # Save metrics log and model
     save_log(output_dir, **train_metrics)
     save_model(trained_model.module, output_dir)
-
-
-
 
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
