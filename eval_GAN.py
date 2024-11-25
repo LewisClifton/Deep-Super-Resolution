@@ -43,7 +43,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         image_name = image_name[0] 
 
         if device == 0:
-            print(f"Starting on {image_name}.  ({idx}/{num_images})")
+            print(f"Starting on {image_name}.  ({idx}/{batch_size})")
 
         # Perform DIP SISR for the current image
         resolved_image = gan_G(LR_image)
