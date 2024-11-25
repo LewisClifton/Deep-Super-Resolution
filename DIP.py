@@ -177,7 +177,7 @@ def main(LR_dir,
         resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=device)
 
         # Accumulate running lpips
-        HR_image = HR_image.to(device)
+        HR_image = HR_image.unsqueeze(0).to(device)
         
         # Accumulate running psnr, ssim, lpips
         running_psnr += psnr(resolved_image, HR_image).item()
