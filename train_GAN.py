@@ -268,7 +268,7 @@ if __name__ == '__main__':
     fine_tune_lr = args.fine_tune_learning_rate
 
     # Pre-trained model path
-    pre_trained_model_path = args.pre_trained_model_path
+    pre_trained_model_path = args.pre_trained_models_path
 
     # Initialise gpus
     device = 0
