@@ -42,11 +42,16 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         LR_image = LR_image.to(device)
         image_name = image_name[0] 
 
+        print(LR_image.shape)
+        print(HR_image.shape)
+
         if device == 0:
             print(f"Starting on {image_name}.  ({idx}/{batch_size})")
 
         # Perform DIP SISR for the current image
         resolved_image = gan_G(LR_image)
+
+        print(resolved_image.shape)
 
         # Get PSNR, SSIM, LPIPS metrics
         running_psnr += psnr(resolved_image, HR_image)
@@ -101,7 +106,7 @@ def main(rank,
     # Create a dataloader           
     data_loader = get_data_loader(dataset, rank, world_size, batch_size)
 
-        # Set Generator to evaluation mode
+    # Set Generator to evaluation mode
     gan_G.eval()
 
     start_time = time.time()
