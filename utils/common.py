@@ -30,8 +30,7 @@ def save_image(image, image_name, out_dir):
 
     out_dir = os.path.join(out_dir, 'images/')
 
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
 
     path = os.path.join(out_dir, f'{image_name}_resolved.png')
 
