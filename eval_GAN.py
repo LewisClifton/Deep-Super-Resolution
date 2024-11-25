@@ -99,13 +99,13 @@ def main(rank,
     data_loader = get_data_loader(dataset, rank, world_size, batch_size)
 
     # Set Generator to evaluation mode
-    gan_G.eval()
+    gan_G.module.eval()
 
     start_time = time.time()
     
     # Evaluate
-    with torch.no_grad():
-        eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
+    
+    eval_metrics = GAN_ISR_Batch_eval(gan_G, data_loader, out_dir, num_images, device=rank)
 
     # Get run time
     eval_metrics['runtime'] = time.time() - start_time
