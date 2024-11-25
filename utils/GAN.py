@@ -124,7 +124,7 @@ def save_model(model, out_dir):
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    path = os.path.join(out_dir, f'SRGAN.pth')
+    path = os.path.join(out_dir, f'srgan.pth')
     torch.save(model.state_dict(), path)
 
     print(f'Model saved to {path}')
