@@ -64,8 +64,6 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         del LR_image, HR_image
         del resolved_image
 
-    dist.barrier()
-
     # Calculate metric averages
     eval_metrics = {
         'avg_psnr' : running_psnr / batch_size,
