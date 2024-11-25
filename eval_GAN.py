@@ -4,11 +4,9 @@ import argparse
 import sys
 from datetime import datetime
 import time
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.multiprocessing as mp
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
-from torchvision.models import VGG19_Weights
+import torch.nn.functional as F
 
 from models.GAN.generator import Generator
 from dataset import GANDIV2KDataset
@@ -32,7 +30,6 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     psnr = PSNR().to(device)
     ssim = SSIM(data_range=1.).to(device)
     lpips = LPIPS(net_type='alex').to(device)
-    lpips_preprocess = VGG19_Weights.IMAGENET1K_V1.transforms()
 
     # Perform SISR using the generator for batch_size many images
     for _, (LR_image, HR_image, image_name) in enumerate(val_loader): 
@@ -49,7 +46,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         # Get PSNR, SSIM, LPIPS metrics
         running_psnr += psnr(resolved_image, HR_image).item()
         running_ssim += ssim(resolved_image, HR_image).item()
-        running_lpips += lpips(lpips_preprocess(resolved_image), lpips_preprocess(HR_image)).item()
+        running_lpips += lpips(F.normalize(resolved_image, dim=0), F.normalize(HR_image, dim=0)).item()
 
         print(f"Done evaluating over {image_name}.")
 
