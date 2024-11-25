@@ -258,7 +258,6 @@ if __name__ == '__main__':
     
     # Set the output and trained model directory
     out_dir = os.path.join(out_dir, rf'out/DIP/{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
-    os.makedirs(out_dir, exist_ok=True)
 
     # Number of images from the dataset to use
     num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
@@ -309,7 +308,7 @@ if __name__ == '__main__':
 
         out_dir = os.path.join(out_dir, f'{noise_type['type']}/{args.noise_param}')
 
-        
+    os.makedirs(out_dir, exist_ok=True)
 
     # Whether to save output when evaluating
     save_output = args.save_output
