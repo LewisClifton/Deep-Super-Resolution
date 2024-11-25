@@ -32,16 +32,18 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
     ssim = SSIM(data_range=1.)
     lpips = LPIPS(net_type='alex').to(device)
 
-    print(f'Starting GAN evaluation..')
+    if device == 0:
+        print(f'Starting GAN evaluation..')
 
     # Perform SISR using the generator for batch_size many images
     for idx, (LR_image, HR_image, image_name) in enumerate(val_loader): 
 
         HR_image = HR_image.to(device)
         LR_image = LR_image.to(device)
-        image_name = image_name.squeeze(0)
+        image_name = image_name[0] 
 
-        print(f"Starting on {image_name}.  ({idx}/{num_images})")
+        if device == 0:
+            print(f"Starting on {image_name}.  ({idx}/{num_images})")
 
         # Perform DIP SISR for the current image
         resolved_image = gan_G(LR_image)
@@ -51,18 +53,19 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         running_ssim += ssim(resolved_image, HR_image)
         running_lpips += lpips(resolved_image, HR_image)
 
-        print("Done.")
+        if device == 0:
+            print("Done.")
 
-        resolved_image = torch_to_np(resolved_image)
-        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-        save_image(resolved_image, image_name, out_dir)
+            resolved_image = torch_to_np(resolved_image)
+            resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+            save_image(resolved_image, image_name, out_dir)
 
         # Delete everything to ensure gpu memory is low
         del LR_image, HR_image
         del resolved_image
 
-    
-    print(f"Done for all {batch_size} images.")
+    if device == 0:
+        print(f"Done for all {batch_size} images.")
 
     # Calculate metric averages
     eval_metrics = {
