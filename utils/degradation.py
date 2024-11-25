@@ -13,6 +13,8 @@ def add_salt_pepper_noise(image, s=0.01, p=0.01):
     
     image[salt] = 255
     image[pepper] = 0
+
+    print(image)
     
     return image
 
