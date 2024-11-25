@@ -171,8 +171,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get dataset
-    LR_dir = os.path.join(data_dir, 'DIV2K_validation_LR_x8/')
-    HR_dir = os.path.join(data_dir, 'DIV2K_validation_HR/')
+    LR_dir = os.path.join(data_dir, 'DIV2K_valid_LR_x8/')
+    HR_dir = os.path.join(data_dir, 'DIV2K_valid_HR/')
 
     # Output directory
     date = datetime.now()
