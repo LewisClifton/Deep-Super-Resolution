@@ -79,13 +79,12 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
             ssims.append(epoch_ssim)
             lpipss.append(epoch_lpips)
 
-            if device == 0:
-                print(f"Iteration {iter+1}/{training_config['num_iter']}:")
-                print(f"PSNR: {epoch_psnr}")
-                print(f"SSIM: {epoch_ssim}")
-                print(f'LPIPS: {epoch_lpips}')
-                print(f"Iteration runtime: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))} seconds")
-            
+            print(f"Iteration {iter+1}/{training_config['num_iter']}:")
+            print(f"PSNR: {epoch_psnr}")
+            print(f"SSIM: {epoch_ssim}")
+            print(f'LPIPS: {epoch_lpips}')
+            print(f"Iteration runtime: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))} seconds")
+        
             del epoch_psnr, epoch_ssim, epoch_lpips
 
         iter += 1
@@ -125,27 +124,21 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     return resolved_image, training_metrics
 
 
-def main(rank,
-         world_size, 
-         LR_dir, 
+def main(LR_dir, 
          HR_dir, 
          out_dir, 
          factor, 
          num_images,
          training_config, 
          save_output,
-         train_log_freq):
+         train_log_freq,
+         device):
     
-    # setup the process groups
-    setup_gpu(rank, world_size)
-
     # Load the dataset
     dataset = DIPDIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images)
-    data_loader = get_data_loader(dataset, rank, world_size, batch_size=1)
 
-    if rank == 0:
-        print(f"Performing DIP SISR on {num_images} images.")
-        print(f"Output directory: {out_dir}")
+    print(f"Performing DIP SISR on {num_images} images.")
+    print(f"Output directory: {out_dir}")
 
     # Initialise final performance metrics averages
     running_psnr = 0
@@ -160,18 +153,17 @@ def main(rank,
     }
 
     # Get metrics models
-    psnr = PSNR().to(rank)
-    ssim = SSIM(data_range=1.).to(rank)
-    lpips = LPIPS(net_type='alex').to(rank)
+    psnr = PSNR().to(device)
+    ssim = SSIM(data_range=1.).to(device)
+    lpips = LPIPS(net_type='alex').to(device)
 
     start_time = time.time()
 
     # Perform SISR using DIP for num_images many images
-    for idx, (LR_image, HR_image, image_name) in enumerate(data_loader): 
+    for idx, (LR_image, HR_image, image_name) in enumerate(dataset): 
         image_name = image_name[0]  
 
-        if rank == 0:
-            print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
+        print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
         # Define DIP network
         net = get_net(3, 'skip', 'reflection',
@@ -179,14 +171,13 @@ def main(rank,
               skip_n33u=128,
               skip_n11=4,
               num_scales=5,
-              upsample_mode='bilinear').to(rank)
-        net = DDP(net, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+              upsample_mode='bilinear').to(device)
 
         # Perform DIP SISR for the current image
         resolved_image, image_train_metrics = DIP_ISR(net, LR_image, HR_image, factor, training_config, train_log_freq, psnr=psnr, ssim=ssim, lpips=lpips, device=rank)
 
         # Accumulate running lpips
-        HR_image = HR_image.to(rank)
+        HR_image = HR_image.to(device)
         
         # Accumulate running psnr, ssim, lpips
         running_psnr += psnr(resolved_image, HR_image).item()
@@ -199,7 +190,7 @@ def main(rank,
         metrics["Average LPIPS per epoch"] += np.array(image_train_metrics['lpipss'])
 
         # Save resolved image
-        if save_output and rank == 0:
+        if save_output:
             print("Done.")
 
             resolved_image = torch_to_np(resolved_image)
@@ -216,8 +207,8 @@ def main(rank,
 
         del LR_image, HR_image, resolved_image, net
 
-    if rank == 0:
-        print(f"Done for all {num_images} images.")
+   
+    print(f"Done for all {num_images} images.")
 
     # Get run time
     metrics['runtime'] = time.time() - start_time
@@ -345,4 +336,5 @@ if __name__ == '__main__':
         num_images, 
         training_config,
         save_output,
-        train_log_freq)
+        train_log_freq,
+        0)
