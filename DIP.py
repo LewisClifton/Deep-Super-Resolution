@@ -261,6 +261,9 @@ def main(rank,
         # Save metrics log and model
         save_log(out_dir, **final_metrics)
 
+    dist.barrier()
+    if dist.is_initialized():
+            dist.destroy_process_group()
     
 if __name__ == '__main__':
 
