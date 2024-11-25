@@ -161,7 +161,6 @@ def main(LR_dir,
 
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(dataset): 
-        image_name = image_name
 
         print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
         
@@ -197,12 +196,10 @@ def main(LR_dir,
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, f'{image_name}_resolved', out_dir)
 
-            LR_image, HR_image = get_image_pair(dataset, idx)
-
-            LR_image = (LR_image.cpu().numpy().transpose(1, 2, 0)).astype(np.uint8)
-            HR_image = (LR_image.cpu().numpy().transpose(1, 2, 0)).astype(np.uint8)
-
+            LR_image = (LR_image.cpu().numpy()).astype(np.uint8)
             save_image(LR_image, f'{image_name}_LR', out_dir)
+
+            HR_image = (LR_image.cpu().numpy()).astype(np.uint8)
             save_image(HR_image, f'{image_name}_HR', out_dir)
 
         del LR_image, HR_image, resolved_image, net
