@@ -202,7 +202,7 @@ def main(rank,
 
         # Save resolved image
         if save_output:
-            print(resolved_image.shape)
+            resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
             save_image(resolved_image, image_name, output_dir)
 
