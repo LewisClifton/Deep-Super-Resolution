@@ -35,8 +35,8 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
     noise = net_input.detach().clone()
 
     # Put everything on the GPU
-    LR_image = LR_image.to(device).detach()
-    HR_image = HR_image.to(device).detach()
+    LR_image = LR_image.unsqueeze(0).to(device).detach()
+    HR_image = HR_image.unsqueeze(0).to(device).detach()
 
     # Optimise the network over the input
     iter = 0
@@ -71,9 +71,9 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
         # Log evaluation metrics
         if iter % train_log_freq == 0:
             
-            epoch_psnr = psnr(out_HR, HR_image.unsqueeze(0)).item()
-            epoch_ssim = ssim(out_HR, HR_image.unsqueeze(0)).item()
-            epoch_lpips = lpips(out_HR, HR_image.unsqueeze(0)).item()
+            epoch_psnr = psnr(out_HR, HR_image).item()
+            epoch_ssim = ssim(out_HR, HR_image).item()
+            epoch_lpips = lpips(out_HR, HR_image).item()
 
             psnrs.append(epoch_psnr)
             ssims.append(epoch_ssim)
@@ -161,7 +161,6 @@ def main(LR_dir,
 
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(dataset): 
-        HR_image = HR_image.unsqueeze(0)
         image_name = image_name[0]  
 
         print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
