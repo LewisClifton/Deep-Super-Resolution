@@ -42,8 +42,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         LR_image = LR_image.to(device)
         image_name = image_name[0] 
 
-        if device == 0:
-            print(f"Starting on {image_name}.  ({idx}/{batch_size})")
+        print(f"Starting on {image_name}.")
 
         # Perform DIP SISR for the current image
         resolved_image = gan_G(LR_image)
@@ -53,12 +52,12 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         running_ssim += ssim(resolved_image, HR_image).item()
         running_lpips += lpips(resolved_image, HR_image).item()
 
-        if device == 0:
-            print("Done.")
+        print(f"Finished evaluating over {image_name}")
+        print()
 
-            resolved_image = torch_to_np(resolved_image)
-            resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-            save_image(resolved_image, image_name, out_dir)
+        resolved_image = torch_to_np(resolved_image)
+        resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+        save_image(resolved_image, image_name, out_dir)
 
         # Delete everything to ensure gpu memory is low
         del LR_image, HR_image

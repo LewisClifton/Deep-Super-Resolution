@@ -180,6 +180,10 @@ def main(LR_dir,
     save_log(out_dir, **train_metrics)
     save_model(trained_model, out_dir)
 
+    dist.barrier()
+    if dist.is_initialized():
+            dist.destroy_process_group()
+
 # Setup all the parameters for the GAN script
 if __name__ == '__main__':
 
