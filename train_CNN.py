@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn as nn
 
-from models import SRCNN
 from dataset import DIV2KDataset
+from models.SRCNN.cnn import CNN
 from utils.common import *
 
 
@@ -82,7 +82,7 @@ def main(LR_dir,
          device):
 
     # Get generator and wrap with DDP
-    cnn = SRCNN(factor=factor).to(device)
+    cnn = CNN(factor=factor).to(device)
     cnn.train()
 
     # Number of minibatch image patches when training(16 in reference)

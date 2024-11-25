@@ -1,8 +1,8 @@
 from torch import nn
 
-class SRCNN(nn.Module):
+class CNN(nn.Module):
     def __init__(self, scale_factor=8):
-        super(SRCNN, self).__init__()
+        super(CNN, self).__init__()
 
         self.scale_factor = scale_factor
 
