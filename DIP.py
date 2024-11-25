@@ -272,7 +272,8 @@ if __name__ == '__main__':
     
     # Degredation
     downsample = args.downsample
-    out_dir = os.path.join(out_dir, f'downsample')
+    if downsample:
+        out_dir = os.path.join(out_dir, f'downsample')
 
     if downsample:
         factor *= 2
