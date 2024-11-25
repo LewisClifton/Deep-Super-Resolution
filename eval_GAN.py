@@ -46,7 +46,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         print(f"Starting on {image_name}.")
 
         # Perform DIP SISR for the current image
-        resolved_image = gan_G(LR_image)
+        resolved_image = gan_G.module(LR_image)
 
         # Get PSNR, SSIM, LPIPS metrics
         running_psnr += psnr(resolved_image, HR_image).item()

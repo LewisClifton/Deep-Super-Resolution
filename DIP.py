@@ -58,7 +58,7 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
         net_input = net_input.to(device)
 
         # Get model output
-        out_HR = net(net_input)
+        out_HR = net.module(net_input)
 
         out_LR = downsampler(out_HR)
 
