@@ -243,7 +243,7 @@ def main(rank,
 
         # Calculate average final metrics across GPUs
         avg_final_psnr = np.mean([gpu_metrics['final_psnr'] for gpu_metrics in metrics_gpus])
-        avg_final_ssim = np.mean([gpu_metrics['final_ssims'] for gpu_metrics in metrics_gpus])
+        avg_final_ssim = np.mean([gpu_metrics['final_ssim'] for gpu_metrics in metrics_gpus])
         avg_final_lpip = np.mean([gpu_metrics['final_lpips'] for gpu_metrics in metrics_gpus])
 
         # Final train metric for the log
