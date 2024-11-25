@@ -129,7 +129,7 @@ def main(rank,
          world_size, 
          LR_dir, 
          HR_dir, 
-         output_dir, 
+         out_dir, 
          factor, 
          num_images,
          training_config, 
@@ -145,7 +145,7 @@ def main(rank,
 
     if rank == 0:
         print(f"Performing DIP SISR on {num_images} images.")
-        print(f"Output directory: {output_dir}")
+        print(f"Output directory: {out_dir}")
 
     # Initialise final performance metrics averages
     running_psnr = 0
@@ -204,7 +204,7 @@ def main(rank,
         if save_output:
             resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
-            save_image(resolved_image, image_name, output_dir)
+            save_image(resolved_image, image_name, out_dir)
 
         del LR_image, HR_image, resolved_image, net
 
@@ -258,14 +258,8 @@ def main(rank,
             "Average final LPIPS" : avg_final_lpip,
         }
 
-        # Output directory
-        date = datetime.now()
-        out_dir = os.path.join(out_dir, f'DIP/{date.strftime("%Y_%m_%d_%p%I_%M")}')
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
         # Save metrics log and model
-        save_log(output_dir, **final_metrics)
+        save_log(out_dir, **final_metrics)
 
     dist.barrier()
     if dist.is_initialized():
@@ -290,10 +284,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data_dir = args.data_dir
-    cwd = args.out_dir
+    out_dir = args.out_dir
 
-    if not os.path.exists(cwd) or not os.path.isdir(cwd):
-        print(f'{cwd} not found.')
+    if not os.path.exists(out_dir) or not os.path.isdir(out_dir):
+        print(f'{out_dir} not found.')
         sys.exit(1)
 
     # Get dataset
@@ -301,7 +295,9 @@ if __name__ == '__main__':
     HR_dir = os.path.join(data_dir, 'DIV2K_train_HR/')
     
     # Set the output and trained model directory
-    output_dir = os.path.join(cwd, rf'out\DIP\{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, rf'out/DIP/{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     # Number of images from the dataset to use
     num_images = args.num_images # -1 for entire dataset, 1 for a running GAN on a single image
@@ -378,7 +374,7 @@ if __name__ == '__main__':
         args=(world_size, 
               LR_dir, 
               HR_dir, 
-              output_dir, 
+              out_dir, 
               factor, 
               num_images, 
               training_config,
