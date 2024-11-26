@@ -97,7 +97,7 @@ def main(LR_dir,
     dataset = DIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir,scale_factor=factor, num_images=num_images, downsample=downsample)
 
     # Create a dataloader           
-    data_loader =  DataLoader(dataset, batch_size=batch_size, pin_memory=False, num_workers=0, drop_last=False, shuffle=False)
+    data_loader =  DataLoader(dataset, batch_size=batch_size)
 
     start_time = time.time()
 
