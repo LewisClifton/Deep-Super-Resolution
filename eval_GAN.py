@@ -38,7 +38,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         LR_image = LR_image.to(device)
         image_name = image_name[0] 
 
-        print(f"Starting on {image_name}.")
+        print(f'Starting on {image_name}.')
 
         # Perform DIP SISR for the current image
         resolved_image = gan_G(LR_image)
@@ -48,7 +48,7 @@ def GAN_ISR_Batch_eval(gan_G, val_loader, out_dir, batch_size, device):
         running_ssim += ssim(resolved_image, HR_image).item()
         running_lpips += lpips(resolved_image, HR_image).item()
 
-        print(f"Done evaluating over {image_name}.")
+        print(f'Done evaluating over {image_name}.')
 
         resolved_image = torch_to_np(resolved_image)
         resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
@@ -101,13 +101,13 @@ def main(LR_dir,
 
     # Get run time
     runtime = time.time() - start_time
-    runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
+    runtime = time.strftime('%H:%M:%S', time.gmtime(runtime))
 
     print(f'Done evaluating for all {num_images} images.')
 
     # Final evalutaion metric for the log
-    eval_metrics["Number of images evaluated over"] = num_images
-    eval_metrics["Eval runtime"] = runtime
+    eval_metrics['Number of images evaluated over'] = num_images
+    eval_metrics['Eval runtime'] = runtime
 
     # Save metrics log and model
     if noise_type is None:
@@ -122,9 +122,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Get command line arguments for program behaviour
-    parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
-    parser.add_argument('--out_dir', type=str, help="Path to directory for evaluation log/saved images", required=True)
-    parser.add_argument('--model_path', type=str, help="Path of model to evaluate", required=True)
+    parser.add_argument('--data_dir', type=str, help='Path to directory for dataset', required=True)
+    parser.add_argument('--out_dir', type=str, help='Path to directory for evaluation log/saved images', required=True)
+    parser.add_argument('--model_path', type=str, help='Path of model to evaluate', required=True)
     parser.add_argument('--num_images', type=int, help='Number of images to use for evaluation', default=-1)
     parser.add_argument('--save_images', type=bool, help='Whether to save super-resolved images', default=False)
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating. "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
@@ -150,9 +150,13 @@ if __name__ == '__main__':
     # Super resolution scale factor
     factor = args.factor
 
+    downsample = args.downsample
+    if downsample:
+        factor *= 2
+
     # Output directory
     date = datetime.now()
-    out_dir = os.path.join(out_dir, f'out/GANx{factor}/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, f'out/GANx{factor}/{date.strftime('%Y_%m_%d_%p%I_%M')}')
     os.makedirs(out_dir, exist_ok=True)
 
     # Path of the trained model

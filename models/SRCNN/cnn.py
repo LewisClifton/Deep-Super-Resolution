@@ -18,7 +18,7 @@ class CNN(nn.Module):
         x = self.relu(x)
 
         x = self.conv2(x)
-        x = self.relu()
+        x = self.relu(x)
 
         x = self.conv3(x)
         return x

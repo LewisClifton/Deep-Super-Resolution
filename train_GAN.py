@@ -119,16 +119,16 @@ def GAN_ISR_train(gan_G, gan_D, lr, train_loader, num_epoch, train_log_freq, dev
             avg_ssims.append(sum(epoch_ssims)/batches)
             avg_lpipss.append(sum(epoch_lpipss)/batches)
 
-            print(f"Epoch {epoch+1}/{num_epoch}:")
-            print(f"Discriminator loss: {iteration_losses_D[-1]:.4f}")
-            print(f"Generator loss: {iteration_losses_G[-1]:.4f}")
-            print(f"Epoch run time: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))}")
+            print(f'Epoch {epoch+1}/{num_epoch}:')
+            print(f'Discriminator loss: {iteration_losses_D[-1]:.4f}')
+            print(f'Generator loss: {iteration_losses_G[-1]:.4f}')
+            print(f'Epoch run time: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))}')
 
     
     train_metrics = {
-        "Average PSNR during training" : avg_psnrs,
-        "Average SSIM during training" : avg_ssims,
-        "Average LPIPS during training" : avg_lpipss,
+        'Average PSNR during training' : avg_psnrs,
+        'Average SSIM during training' : avg_ssims,
+        'Average LPIPS during training' : avg_lpipss,
         'Final Generator loss' : iteration_losses_D[-1],
         'Final Discriminator loss' : iteration_losses_G[-1]
     }
@@ -178,9 +178,9 @@ def main(LR_dir,
 
     # Pre-train
     if pre_trained_model_path is None:
-        print("Beginnning pre-training stage..")
+        print('Beginnning pre-training stage..')
         pre_trained_G, pre_trained_D, train_metrics = GAN_ISR_train(gan_G, gan_D, pre_train_lr, data_loader, pre_train_epochs, train_log_freq, device=device)
-        print("Done pre-training.")
+        print('Done pre-training.')
 
         # Save metrics log and model
         save_log(out_dir, **train_metrics)
@@ -198,11 +198,11 @@ def main(LR_dir,
 
     # Get run time
     runtime = time.time() - start_time
-    runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
+    runtime = time.strftime('%H:%M:%S', time.gmtime(runtime))
 
     # Final train metric for the log
-    train_metrics["Number of images used for training"] = num_images
-    train_metrics["Train runtime"] = runtime
+    train_metrics['Number of images used for training'] = num_images
+    train_metrics['Train runtime'] = runtime
 
 
 # Setup all the parameters for the GAN script
@@ -211,8 +211,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Get command line arguments for program behaviour
-    parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
-    parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
+    parser.add_argument('--data_dir', type=str, help='Path to directory for dataset', required=True)
+    parser.add_argument('--out_dir', type=str, help='Path to directory for dataset, saved images, saved models', required=True)
     parser.add_argument('--pre_train_epochs', type=int, help='Number of epochs when pre-training', default=8000)
     parser.add_argument('--fine_tune_epochs', type=int, help='Number of epochs when fine tuning', default=4000)
     parser.add_argument('--pre_train_learning_rate', type=float, help='Learning rate during pre-training', default=1e-4)
@@ -248,7 +248,7 @@ if __name__ == '__main__':
 
     # Output directory
     date = datetime.now()
-    out_dir = os.path.join(out_dir, f'trained/GANx{factor}/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, f'trained/GANx{factor}/{date.strftime('%Y_%m_%d_%p%I_%M')}')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 

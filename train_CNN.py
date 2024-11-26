@@ -30,6 +30,8 @@ def CNN_ISR_train(cnn, data_loader, num_epochs, train_log_freq, criterion, optim
     avg_lpipss = []
 
     batches = len(data_loader)
+    
+    print('Beginning CNN training')
 
     for epoch in range(num_epochs):
 
@@ -63,9 +65,9 @@ def CNN_ISR_train(cnn, data_loader, num_epochs, train_log_freq, criterion, optim
             avg_lpipss.append(sum(epoch_lpipss)/batches)
     
     train_metrics = {
-        "Average PSNR during training" : avg_psnrs,
-        "Average SSIM during training" : avg_ssims,
-        "Average LPIPS during training" : avg_lpipss,
+        'Average PSNR during training' : avg_psnrs,
+        'Average SSIM during training' : avg_ssims,
+        'Average LPIPS during training' : avg_lpipss,
     }
 
     return cnn, train_metrics
@@ -106,11 +108,11 @@ def main(LR_dir,
 
     # Get run time
     runtime = time.time() - start_time
-    runtime = time.strftime("%H:%M:%S", time.gmtime(runtime))
+    runtime = time.strftime('%H:%M:%S', time.gmtime(runtime))
 
     # Final train metric for the log
-    train_metrics["Number of images used for training"] = num_images
-    train_metrics["Train runtime"] = runtime
+    train_metrics['Number of images used for training'] = num_images
+    train_metrics['Train runtime'] = runtime
 
     # Save metrics log and model
     save_log(out_dir, **train_metrics)
@@ -123,8 +125,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Get command line arguments for program behaviour
-    parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
-    parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
+    parser.add_argument('--data_dir', type=str, help='Path to directory for dataset', required=True)
+    parser.add_argument('--out_dir', type=str, help='Path to directory for dataset, saved images, saved models', required=True)
     parser.add_argument('--num_epochs', type=int, help='Number of epochs when pre-training', default=400)
     parser.add_argument('--train_log_freq', type=int, help='How many epochs between logging metrics when training', default=100)
     parser.add_argument('--num_images', type=int, help='Number of images to use for training', default=-1)
@@ -156,7 +158,7 @@ if __name__ == '__main__':
 
     # Output directory
     date = datetime.now()
-    out_dir = os.path.join(out_dir, f'trained/CNNx{factor}/{date.strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, f'trained/CNNx{factor}/{date.strftime('%Y_%m_%d_%p%I_%M')}')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 

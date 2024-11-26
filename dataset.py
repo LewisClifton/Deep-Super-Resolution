@@ -9,14 +9,14 @@ from PIL import Image
 def get_image_pair(dataset_config, idx):
         # Read the HR GT image
     HR_image_path = os.path.join(dataset_config.HR_dir, dataset_config.HR_images[idx])
-    HR_image = Image.open(HR_image_path).convert("RGB")
+    HR_image = Image.open(HR_image_path).convert('RGB')
 
     # Get the filename of the input
     filename, _ = os.path.splitext(dataset_config.HR_images[idx])
 
     # Get the LR image
     LR_image_path = os.path.join(dataset_config.LR_dir, f'{filename}x8.png')
-    LR_image = Image.open(LR_image_path).convert("RGB") 
+    LR_image = Image.open(LR_image_path).convert('RGB') 
 
     # Unfortunately the images in the dataset are too big to use in the forward pass so apply downsampling by default
     LR_image = downsample(LR_image, 2)

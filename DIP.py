@@ -78,11 +78,11 @@ def DIP_ISR(net, LR_image, HR_image, scale_factor, training_config, train_log_fr
             ssims.append(epoch_ssim)
             lpipss.append(epoch_lpips)
 
-            print(f"Iteration {iter+1}/{training_config['num_iter']}:")
-            print(f"PSNR: {epoch_psnr}")
-            print(f"SSIM: {epoch_ssim}")
+            print(f'Iteration {iter+1}/{training_config['num_iter']}:')
+            print(f'PSNR: {epoch_psnr}')
+            print(f'SSIM: {epoch_ssim}')
             print(f'LPIPS: {epoch_lpips}')
-            print(f"Iteration runtime: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))} seconds")
+            print(f'Iteration runtime: {time.strftime('%H:%M:%S', time.gmtime(time.time() - start_time))} seconds')
         
             del epoch_psnr, epoch_ssim, epoch_lpips
 
@@ -138,8 +138,8 @@ def main(LR_dir,
     # Load the dataset
     dataset = DIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir, scale_factor=factor, num_images=num_images, noise_type=noise_type, downsample=downsample)
 
-    print(f"Performing DIP SISR on {num_images} images.")
-    print(f"Output directory: {out_dir}")
+    print(f'Performing DIP SISR on {num_images} images.')
+    print(f'Output directory: {out_dir}')
 
     # Initialise final performance metrics averages
     running_psnr = 0
@@ -148,9 +148,9 @@ def main(LR_dir,
 
     # Initialise performance over training metrics
     metrics = {
-        "Average PSNR per epoch" : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
-        "Average SSIM per epoch" : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
-        "Average LPIPS per epoch" : np.zeros(shape=(training_config['num_iter'] // train_log_freq))
+        'Average PSNR per epoch' : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
+        'Average SSIM per epoch' : np.zeros(shape=(training_config['num_iter'] // train_log_freq)),
+        'Average LPIPS per epoch' : np.zeros(shape=(training_config['num_iter'] // train_log_freq))
     }
 
     # Get metrics models
@@ -163,7 +163,7 @@ def main(LR_dir,
     # Perform SISR using DIP for num_images many images
     for idx, (LR_image, HR_image, image_name) in enumerate(dataset): 
 
-        print(f"Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ")
+        print(f'Starting on {image_name} (image {idx+1}/{num_images}) for {training_config['num_iter']} iterations. ')
         
         # Define DIP network
         net = get_net(32, 'skip', 'reflection',
@@ -185,13 +185,13 @@ def main(LR_dir,
         running_lpips += lpips(resolved_image, HR_image).item()
         
         # Accumulate the metrics over iterations
-        metrics["Average PSNR per epoch"] += np.array(image_train_metrics['psnrs'])
-        metrics["Average SSIM per epoch"] += np.array(image_train_metrics['ssims'])
-        metrics["Average LPIPS per epoch"] += np.array(image_train_metrics['lpipss'])
+        metrics['Average PSNR per epoch'] += np.array(image_train_metrics['psnrs'])
+        metrics['Average SSIM per epoch'] += np.array(image_train_metrics['ssims'])
+        metrics['Average LPIPS per epoch'] += np.array(image_train_metrics['lpipss'])
 
         # Save resolved image
         if save_output:
-            print("Done.")
+            print('Done.')
 
             resolved_image = torch_to_np(resolved_image)
             resolved_image = (resolved_image.transpose(1, 2, 0) * 255).astype(np.uint8)
@@ -208,20 +208,20 @@ def main(LR_dir,
         del LR_image, HR_image, resolved_image, net
 
    
-    print(f"Done for all {num_images} images.")
+    print(f'Done for all {num_images} images.')
 
     # Get run time
     metrics['runtime'] = time.time() - start_time
 
     # Get average final metrics for each resolved image
-    metrics["Average final PSNR"] = running_psnr / num_images
+    metrics['Average final PSNR'] = running_psnr / num_images
     metrics['Average final SSIM'] = running_ssim / num_images
-    metrics["Average final LPIPS"] = running_lpips / num_images
-    metrics["Number of images evaluated over"] = num_images
+    metrics['Average final LPIPS'] = running_lpips / num_images
+    metrics['Number of images evaluated over'] = num_images
 
-    metrics["Average PSNR per epoch"] /= num_images
-    metrics["Average SSIM per epoch"] /= num_images
-    metrics["Average LPIPS per epoch"] /= num_images
+    metrics['Average PSNR per epoch'] /= num_images
+    metrics['Average SSIM per epoch'] /= num_images
+    metrics['Average LPIPS per epoch'] /= num_images
 
 
     # Save metrics log and model
@@ -236,8 +236,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Get command line arguments for program behaviour
-    parser.add_argument('--data_dir', type=str, help="Path to directory for dataset", required=True)
-    parser.add_argument('--out_dir', type=str, help="Path to directory for dataset, saved images, saved models", required=True)
+    parser.add_argument('--data_dir', type=str, help='Path to directory for dataset', required=True)
+    parser.add_argument('--out_dir', type=str, help='Path to directory for dataset, saved images, saved models', required=True)
     parser.add_argument('--num_iter', type=int, help='Number of iter when training', default=1)
     parser.add_argument('--train_log_freq', type=int, help='How many iterations between logging metrics when training', default=100)
     parser.add_argument('--save_output', type=bool, help='Whether to save super-resolved output', default=False)
@@ -276,7 +276,7 @@ if __name__ == '__main__':
         factor *= 2
 
     # Set the output and trained model directory
-    out_dir = os.path.join(out_dir, rf'out/DIPx{factor}/{datetime.now().strftime("%Y_%m_%d_%p%I_%M")}')
+    out_dir = os.path.join(out_dir, rf'out/DIPx{factor}/{datetime.now().strftime('%Y_%m_%d_%p%I_%M')}')
 
     # Noise
     noise_type = args.noise_type 
@@ -330,9 +330,9 @@ if __name__ == '__main__':
 
     # Define the training configuration using above
     training_config = {
-        "learning_rate" : learning_rate,
-        "num_iter" : num_iter,
-        "reg_noise_std" : reg_noise_std
+        'learning_rate' : learning_rate,
+        'num_iter' : num_iter,
+        'reg_noise_std' : reg_noise_std
     }
 
 
