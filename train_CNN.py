@@ -82,7 +82,7 @@ def main(LR_dir,
          device):
 
     # Get generator and wrap with DDP
-    cnn = CNN(factor=factor).to(device)
+    cnn = CNN(scale_factor=factor).to(device)
     cnn.train()
 
     # Number of minibatch image patches when training(16 in reference)
