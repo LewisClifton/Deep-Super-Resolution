@@ -18,7 +18,7 @@ from utils.common import *
 # Torch setup
 torch.backends.cudnn.enabled = True
 
-def CNN_ISR_train(cnn, data_loader, num_epochs, criterion, optimizer , device):
+def CNN_ISR_train(cnn, data_loader, num_epochs, train_log_freq, criterion, optimizer, device):
 
     # Get metrics
     psnr = PSNR().to(device)
