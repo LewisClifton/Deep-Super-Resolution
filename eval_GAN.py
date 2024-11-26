@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity as LPIPS
 from torchmetrics.image import PeakSignalNoiseRatio as PSNR, StructuralSimilarityIndexMeasure as SSIM
-import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 from models.GAN.generator import Generator
 from dataset import GANDIV2KDataset
