@@ -130,6 +130,7 @@ if __name__ == '__main__':
     parser.add_argument('--noise_type', type=str, help='Type of noise to apply to LR images when evaluating. "gauss": Gaussian noise, "saltpepper": salt and pepper noise. Requires the --noise_param flag to give noise parameter')
     parser.add_argument('--noise_param', type=float, help='Parameter for noise applied to LR images when evaluating. In the range [0,1]. If --noise=gauss, noise param is the standard deviation. If --noise_type=saltpepper, noise_param is probability of applying salt or pepper noise to a pixel')
     parser.add_argument('--factor', type=bool, help='If evaluating a 8x GAN or 16x', default=8)
+    parser.add_argument('--downsample', type=bool, help='Apply further 2x downsampling to LR images when evaluating')
     args = parser.parse_args()
 
     data_dir = args.data_dir
