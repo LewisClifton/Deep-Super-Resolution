@@ -92,7 +92,7 @@ def main(LR_dir,
     optimizer = optim.Adam(cnn.parameters(), lr=1e-4)
 
     # Load the required dataset
-    dataset = DIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir,scale_factor=factor, num_images=num_images, criterion=criterion, optimizer=optimizer, downsample=downsample)
+    dataset = DIV2KDataset(LR_dir=LR_dir, HR_dir=HR_dir,scale_factor=factor, num_images=num_images, downsample=downsample)
 
     # Create a dataloader           
     data_loader =  DataLoader(dataset, batch_size=batch_size, pin_memory=False, num_workers=0, drop_last=False, shuffle=False)
@@ -101,7 +101,7 @@ def main(LR_dir,
 
     # Train
     print('Beginning training.')
-    trained_model, train_metrics = CNN_ISR_train(cnn, data_loader, num_epochs, train_log_freq, device=device)
+    trained_model, train_metrics = CNN_ISR_train(cnn, data_loader, num_epochs, train_log_freq, criterion=criterion, optimizer=optimizer, device=device)
     print('Done training.')
 
     # Get run time
