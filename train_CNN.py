@@ -37,7 +37,7 @@ def CNN_ISR_train(cnn, data_loader, num_epochs, train_log_freq, criterion, optim
         epoch_ssims = []
         epoch_lpipss = []
 
-        for _, (LR_image, HR_image, _) in data_loader:
+        for _, (LR_image, HR_image, _) in enumerate(data_loader):
 
             LR_image = LR_image.to(device)
             HR_image = HR_image.to(device)
