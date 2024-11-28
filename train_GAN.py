@@ -277,8 +277,8 @@ if __name__ == '__main__':
     # Pre-trained model path
     pre_trained_model_path = args.pre_trained_models_path
 
-    # Initialise gpus
-    device = 0
+    # Initialise gpu
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     main(LR_dir, 
          HR_dir, 
          out_dir, 
